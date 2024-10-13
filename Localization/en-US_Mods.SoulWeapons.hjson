@@ -1,0 +1,38 @@
+SoulWeapon: {
+	Unbound: "[c/FFEFAA:This weapon does not have an owner.]"
+	Incompatible: "[c/FF0000:This weapon rejects you.]"
+	Bound: "[c/9CA1FF:This weapon is bound to you.]"
+}
+
+Items: {
+	SoulWeapon: {
+		DisplayName: "{0}"
+		Tooltip:
+			'''
+			Template of an item
+			Replacing this tooltip is duty 
+			It's snowing on Mt.Fuji
+			'''
+	}
+}
+
+Configs: {
+	SoulWeaponsConfig: {
+		DisplayName: Soul Weapons Config
+
+		SoulWeaponsTalk: {
+			Label: Soul Weapons Talk
+			Tooltip: ""
+		}
+
+		SoulWeaponPreHardmodeStage: {
+			Label: Soul Weapon Pre Hardmode Stage
+			Tooltip: ""
+		}
+
+		SoulWeaponHardmodeStage: {
+			Label: Soul Weapon Hardmode Stage
+			Tooltip: ""
+		}
+	}
+}

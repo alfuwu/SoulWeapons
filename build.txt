@@ -1,0 +1,3 @@
+displayName = Soul Weapons
+author = alfuwu
+version = 1.0
