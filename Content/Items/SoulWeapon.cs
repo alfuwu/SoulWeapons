@@ -3,7 +3,9 @@ using Microsoft.Xna.Framework.Graphics;
 using ReLogic.Content;
 using System;
 using System.Collections.Generic;
+using System.Drawing.Drawing2D;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Terraria;
 using Terraria.ID;
@@ -37,104 +39,112 @@ public enum SubType : byte {
     Rifle
 }
 
+public struct Frame(Asset<Texture2D> texture, int x, int y) {
+    public Asset<Texture2D> texture = texture;
+    public int x = x; // size x of the image
+    public int y = y; // size y of the image
+
+    public static bool operator ==(Frame left, Frame right) => left.texture == right.texture && left.x == right.x && left.y == right.y;
+    public static bool operator !=(Frame left, Frame right) => left.texture != right.texture && left.x != right.x && left.y != right.y;
+}
+
 public class SoulWeapon : ModItem {
-    public static Asset<Texture2D>[] meleeSprites, shinyMeleeSprites, yoyoSprites,
-        tomeSprites, scepterSprites, staffSprites, whipSprites, pistolSprites, assaultRifleSprites, rifleSprites, bowSprites,
-        thrownSprites, pickaxeSprites; // primary textures
-    public static Asset<Texture2D>[] handleSprites, tomePatternSprites, staffGemSprites,
-        pistolHandleSprites, assaultRifleHandleSprites, rifleHandleSprites; // secondary textures
-    public static Asset<Texture2D>[] miscSprites; // tertiary sprites
+    public static Frame[] meleeFrames, shinyMeleeFrames, yoyoFrames,
+        tomeFrames, scepterFrames, staffFrames, whipFrames, pistolFrames, assaultRifleFrames, rifleFrames, bowFrames,
+        thrownFrames, pickaxeFrames; // primary textures
+    public static Frame[] handleFrames, yoyoPatternFrames, tomePatternFrames,
+        staffGemFrames, pistolHandleFrames, assaultRifleHandleFrames, rifleHandleFrames, pickaxeHandleFrames; // secondary textures
+    public static Frame[] miscFrames; // tertiary sprites
     public static Asset<Texture2D>[] materials;
     
     public UUID SoulWeaponID { get; set; }
     SoulWeaponType type;
     SubType subType;
-    byte[] frame;
+    Frame[] frame;
     byte[] materialIDs; // 0 is blade/barrel/etc, 1 is handle, 2 is misc textures (sword guard, etc)
     byte stage;
     string name;
-    //LocalizedText localizedName = null;
 
-    //public override LocalizedText DisplayName => localizedName ?? base.DisplayName;
-
-    private static Asset<Texture2D> GetFrame(string path) => ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Frames/{path}");
+    private static Frame GetFrames(string path, int x, int y) => new(ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Frames/{path}"), x, y);
     private static Asset<Texture2D> GetMat(string path) => ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Materials/{path}");
-
-    //public override LocalizedText DisplayName => SoulWeapons.OfLiteral(name);
 
     public override void Load() {
         // primary sprites
-        meleeSprites = [
-
+        meleeFrames = [
+            GetFrames("Sword_1", 0, 0),
         ];
-        shinyMeleeSprites = [
-
+        shinyMeleeFrames = [
+            GetFrames("Sword_1", 0, 0),
         ];
-        yoyoSprites = [
-
+        yoyoFrames = [
+            GetFrames("Yoyo_1", 0, 0),
         ];
-        tomeSprites = [
-
+        tomeFrames = [
+            GetFrames("Tome_1", 0, 0),
         ];
-        scepterSprites = [
-
+        scepterFrames = [
+            GetFrames("Sword_1", 0, 0),
         ];
-        staffSprites = [
-
+        staffFrames = [
+            GetFrames("Sword_1", 0, 0),
         ];
-        whipSprites = [
-
+        whipFrames = [
+            GetFrames("Sword_1", 0, 0),
         ];
-        pistolSprites = [
-
+        pistolFrames = [
+            GetFrames("Sword_1", 0, 0),
         ];
-        assaultRifleSprites = [
-
+        assaultRifleFrames = [
+            GetFrames("Sword_1", 0, 0),
         ];
-        rifleSprites = [
-
+        rifleFrames = [
+            GetFrames("Sword_1", 0, 0),
         ];
-        bowSprites = [
-
+        bowFrames = [
+            GetFrames("Sword_1", 0, 0),
         ];
-        thrownSprites = [
-
+        thrownFrames = [
+            GetFrames("Dagger_1", 0, 0),
         ];
-        pickaxeSprites = [
-
+        pickaxeFrames = [
+            GetFrames("Sword_1", 0, 0),
         ];
 
         // secondary sprites
-        handleSprites = [
-
+        handleFrames = [
+            GetFrames("SwordHandle_1", 16, 16),
         ];
-        tomePatternSprites = [
-
+        yoyoPatternFrames = [
+            GetFrames("SwordHandle_1", 16, 16),
         ];
-        staffGemSprites = [
-
+        tomePatternFrames = [
+            GetFrames("TomePattern_1", 16, 16),
         ];
-        pistolHandleSprites = [
-
+        staffGemFrames = [
+            GetFrames("SwordHandle_1", 16, 16),
         ];
-        assaultRifleHandleSprites = [
-
+        pistolHandleFrames = [
+            GetFrames("SwordHandle_1", 16, 16),
         ];
-        rifleHandleSprites = [
-
+        assaultRifleHandleFrames = [
+            GetFrames("SwordHandle_1", 16, 16),
+        ];
+        rifleHandleFrames = [
+            GetFrames("SwordHandle_1", 16, 16),
         ];
 
         // tertiary sprites
-        miscSprites = [
-
+        miscFrames = [
+            new Frame()
         ];
     }
 
     public override void Unload() {
-        meleeSprites = shinyMeleeSprites = yoyoSprites = tomeSprites = scepterSprites = staffSprites =
-            whipSprites = pistolSprites = assaultRifleSprites = rifleSprites = bowSprites =
-            thrownSprites = pickaxeSprites = handleSprites = tomePatternSprites = staffGemSprites =
-            pistolHandleSprites = assaultRifleHandleSprites = rifleHandleSprites = miscSprites = materials = null;
+        meleeFrames = shinyMeleeFrames = yoyoFrames = tomeFrames = scepterFrames = staffFrames =
+            whipFrames = pistolFrames = assaultRifleFrames = rifleFrames = bowFrames =
+            thrownFrames = pickaxeFrames = handleFrames = tomePatternFrames = staffGemFrames =
+            pistolHandleFrames = assaultRifleHandleFrames = rifleHandleFrames = miscFrames = null;
+        materials = null;
     }
 
     public override void SetDefaults() {
@@ -143,39 +153,18 @@ public class SoulWeapon : ModItem {
         int gunType = Main.rand.Next(3);
         if (type == SoulWeaponType.RangedMelee || type == SoulWeaponType.Gun)
             subType = (SubType)(gunType + (type == SoulWeaponType.Gun ? 3 : 0));
+        Frame[] a = GetPrimaryFrameArray();
+        Frame[] b = GetSecondaryFrameArray();
         frame = [
-            (byte)Main.rand.Next(type switch {
-                SoulWeaponType.Melee => meleeSprites.Length,
-                SoulWeaponType.RangedMelee => shinyMeleeSprites.Length,
-                SoulWeaponType.Yoyo => yoyoSprites.Length,
-                SoulWeaponType.Tome => tomeSprites.Length,
-                SoulWeaponType.Scepter => scepterSprites.Length,
-                SoulWeaponType.Staff => staffSprites.Length,
-                SoulWeaponType.Whip => whipSprites.Length,
-                SoulWeaponType.Gun => gunType == 0 ? pistolSprites.Length :
-                                      gunType == 1 ? assaultRifleSprites.Length :
-                                      gunType == 2 ? rifleSprites.Length : -1,
-                SoulWeaponType.Bow => bowSprites.Length,
-                SoulWeaponType.Thrown => thrownSprites.Length,
-                SoulWeaponType.Pickaxe => pickaxeSprites.Length,
-                _ => -1
-            } + 1),
-            (byte)Main.rand.Next(type switch {
-                SoulWeaponType.Melee => handleSprites.Length,
-                SoulWeaponType.Tome => tomePatternSprites.Length,
-                SoulWeaponType.Staff => staffGemSprites.Length,
-                SoulWeaponType.Gun => gunType == 0 ? pistolHandleSprites.Length :
-                                      gunType == 1 ? assaultRifleHandleSprites.Length :
-                                      gunType == 2 ? rifleHandleSprites.Length : -1,
-                _ => -1
-            } + 1),
-            (byte)Main.rand.Next(miscSprites.Length)
+            a.Length > 0 ? Main.rand.NextFromList(a) : new Frame(),
+            b.Length > 0 ? Main.rand.NextFromList(b) : new Frame(),
+            Main.rand.NextFromList(miscFrames)
         ];
         materialIDs = [(byte)Main.rand.Next(256), (byte)Main.rand.Next(256), (byte)Main.rand.Next(256)];
-        stage = 0;
+        stage = 1;
         Item.damage = stage switch {
             0 => Main.rand.Next(10, 25),
-            1 => Main.rand.Next(24, 33),
+            1 => Main.rand.Next(25, 33),
             2 => Main.rand.Next(33, 39), // early hardmode
             3 => Main.rand.Next(39, 45),
             4 => Main.rand.Next(45, 61), // post mech
@@ -198,7 +187,6 @@ public class SoulWeapon : ModItem {
             SoulWeaponType.Pickaxe => [ "Pickaxe" ],
             _ => [ "???" ]
         });
-        Init();
     }
 
     public void Init() {
@@ -231,6 +219,7 @@ public class SoulWeapon : ModItem {
                 break;
             case SoulWeaponType.Whip:
                 Item.DamageType = DamageClass.SummonMeleeSpeed;
+                Item.useStyle = ItemUseStyleID.Swing;
                 break;
             case SoulWeaponType.Gun:
                 Item.DamageType = DamageClass.Ranged;
@@ -265,14 +254,61 @@ public class SoulWeapon : ModItem {
         Item.rare = stage + 1;
         Item.UseSound = SoundID.Item1;
         Item.SetNameOverride(name);
+        Item.NetStateChanged();
     }
 
-    public override bool PreDrawInInventory(SpriteBatch spriteBatch, Vector2 position, Rectangle frame, Color drawColor, Color itemColor, Vector2 origin, float scale) {
-        return base.PreDrawInInventory(spriteBatch, position, frame, drawColor, itemColor, origin, scale);
+    public override bool PreDrawInInventory(SpriteBatch spriteBatch, Vector2 position, Rectangle f, Color drawColor, Color itemColor, Vector2 origin, float scale) {
+        Vector2 size = new();
+
+        for (int i = 0; i < frame.Length; i++)
+            if (frame[i].texture != null)
+                size += new Vector2(frame[i].x, frame[i].y);
+        f = new Rectangle(0, 0, (int)size.X, (int)size.Y);
+        position += new Vector2(-size.X, size.Y);
+        for (int i = frame.Length - 1; i > -1; i--) {
+            if (frame[i].texture != null) { // how to dynamic render
+                position -= new Vector2(0, frame[i].texture.Value.Height);
+                spriteBatch.Draw(frame[i].texture.Value, position, drawColor);
+                position += new Vector2(frame[i].x * scale, frame[i].texture.Value.Height - frame[i].y * scale);
+            }
+        }
+        return false;
+        //return base.PreDrawInInventory(spriteBatch, position, frame, drawColor, itemColor, origin, scale);
     }
 
     public override bool PreDrawInWorld(SpriteBatch spriteBatch, Color lightColor, Color alphaColor, ref float rotation, ref float scale, int whoAmI) {
         return base.PreDrawInWorld(spriteBatch, lightColor, alphaColor, ref rotation, ref scale, whoAmI);
+    }
+
+    public Frame[] GetPrimaryFrameArray() {
+        return type switch {
+            SoulWeaponType.Melee => meleeFrames,
+            SoulWeaponType.RangedMelee => shinyMeleeFrames,
+            SoulWeaponType.Yoyo => yoyoFrames,
+            SoulWeaponType.Tome => tomeFrames,
+            SoulWeaponType.Scepter => scepterFrames,
+            SoulWeaponType.Staff => staffFrames,
+            SoulWeaponType.Whip => whipFrames,
+            SoulWeaponType.Gun => subType == SubType.Pistol ? pistolFrames :
+                                  subType == SubType.AssaultRifle ? assaultRifleFrames :
+                                  subType == SubType.Rifle ? rifleFrames : [],
+            SoulWeaponType.Bow => bowFrames,
+            SoulWeaponType.Thrown => thrownFrames,
+            SoulWeaponType.Pickaxe => pickaxeFrames,
+            _ => []
+        };
+    }
+
+    public Frame[] GetSecondaryFrameArray() {
+        return type switch {
+            SoulWeaponType.Melee => handleFrames,
+            SoulWeaponType.Tome => tomePatternFrames,
+            SoulWeaponType.Staff => staffGemFrames,
+            SoulWeaponType.Gun => subType == SubType.Pistol ? pistolHandleFrames :
+                                  subType == SubType.AssaultRifle ? assaultRifleHandleFrames :
+                                  subType == SubType.Rifle ? rifleHandleFrames : [],
+            _ => []
+        };
     }
 
     public override void NetSend(BinaryWriter writer) {
@@ -280,8 +316,13 @@ public class SoulWeapon : ModItem {
         writer.Write((byte)type);
         if (type == SoulWeaponType.RangedMelee || type == SoulWeaponType.Gun)
             writer.Write((byte)subType);
-        for (int i = 0; i < 3 /*frame.Count*/;  i++)
-            writer.Write(frame[i]); // mebbe allow for more frames, but rn that's not needed
+        for (int i = 0; i < 3 /*frame.Count*/; i++)
+            writer.Write(frame[i].texture != null ? i switch {
+                0 => Array.FindIndex(GetPrimaryFrameArray(), f => f == frame[i]) + 1, // mebbe allow for more frames, but rn that's not needed
+                1 => Array.FindIndex(GetSecondaryFrameArray(), f => f == frame[i]) + 1,
+                2 => Array.FindIndex(miscFrames, f => f == frame[i]) + 1,
+                _ => 0
+            } : 0);
         for (int i = 0; i < 3; i++)
             writer.Write(materialIDs[i]);
         writer.Write(stage);
@@ -293,7 +334,10 @@ public class SoulWeapon : ModItem {
         type = (SoulWeaponType)reader.ReadByte();
         if (type == SoulWeaponType.RangedMelee || type == SoulWeaponType.Gun)
             subType = (SubType)reader.ReadByte();
-        frame = reader.ReadBytes(3);
+        byte[] frames = reader.ReadBytes(3);
+        frame = [frames[0] > 0 ? GetPrimaryFrameArray()[frames[0] - 1] : new Frame(),
+            frames[1] > 0 ? GetSecondaryFrameArray()[frames[1] - 1] : new Frame(),
+            frames[2] > 0 ? miscFrames[frames[2] - 1] : new Frame()];
         materialIDs = reader.ReadBytes(3);
         stage = reader.ReadByte();
         name = reader.ReadString();
@@ -305,7 +349,15 @@ public class SoulWeapon : ModItem {
         tag["type"] = (byte)type;
         if (type == SoulWeaponType.RangedMelee && subType != SubType.Projectile || type == SoulWeaponType.Gun && subType != SubType.Pistol)
             tag["subType"] = (byte)subType;
-        tag["frame"] = frame;
+        byte[] frames = new byte[frame.Length];
+        for (int i = 0; i < frames.Length; i++)
+            frames[i] = (byte)(frame[i].texture != null ? i switch {
+                0 => Array.FindIndex(GetPrimaryFrameArray(), f => f == frame[i]) + 1,
+                1 => Array.FindIndex(GetSecondaryFrameArray(), f => f == frame[i]) + 1,
+                2 => Array.FindIndex(miscFrames, f => f == frame[i]) + 1,
+                _ => 0
+            } : 0);
+        tag["frame"] = frames;
         tag["materials"] = materialIDs;
         //if (stage > 0)
             tag["stage"] = stage;
@@ -326,7 +378,9 @@ public class SoulWeapon : ModItem {
             else if (type == SoulWeaponType.Gun)
                 subType = SubType.Pistol;
         if (tag.TryGet("frame", out byte[] sid))
-            frame = sid;
+            frame = [sid[0] > 0 ? GetPrimaryFrameArray()[sid[0] - 1] : new Frame(),
+                sid[1] > 0 ? GetSecondaryFrameArray()[sid[1] - 1] : new Frame(),
+                sid[2] > 0 ? miscFrames[sid[2] - 1] : new Frame()];
         if (tag.TryGet("materials", out byte[] m))
             materialIDs = m;
         if (tag.TryGet("name", out string n))
@@ -336,16 +390,6 @@ public class SoulWeapon : ModItem {
         Item.damage = tag.TryGet("damage", out int dmg) ? dmg : 1;
         Init(); // is there a better way to do this?
     }
-
-    /*public override ModItem Clone(Item newEntity) {
-        SoulWeapon clone = (SoulWeapon)base.Clone(newEntity);
-        clone.SoulWeaponID = SoulWeaponID;
-        clone.type = type;
-        clone.frame = frame;
-        clone.materialIDs = materialIDs;
-        clone.stage = stage;
-        return clone;
-    }*/
 
     public override void ModifyTooltips(List<TooltipLine> tooltips) {
         UUID uuid = Main.LocalPlayer.GetModPlayer<SoulWieldingPlayer>().SoulWeaponID;
