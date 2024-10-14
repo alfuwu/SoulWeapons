@@ -1,21 +1,124 @@
-using MonoMod.RuntimeDetour;
+using Microsoft.Xna.Framework;
+using Mono.Cecil.Cil;
+using MonoMod.Cil;
 using SoulWeapons.Content.Items;
 using System;
 using System.ComponentModel;
 using System.Linq;
-using System.Reflection;
 using Terraria;
-using Terraria.Enums;
+using Terraria.DataStructures;
 using Terraria.ModLoader;
 using Terraria.ModLoader.Config;
 using Terraria.ModLoader.IO;
+using Terraria.UI;
 
 namespace SoulWeapons;
 
 public class SoulWeapons : Mod {
     public const string Localization = $"Mods.{nameof(SoulWeapons)}";
 
-    //public static LocalizedText OfLiteral(string literal) => (LocalizedText)typeof(LocalizedText).TypeInitializer.Invoke(["Mods.SoulWeapons.Items.SoulWeapon.DisplayName", literal]);
+    public override void Load() {
+        IL_ItemSlot.DrawItemIcon += DrawItemIcon;
+        IL_PlayerDrawLayers.DrawPlayer_27_HeldItem += DrawPlayer_27_HeldItem;
+        IL_Player.ItemCheck_ApplyUseStyle_Inner += ItemCheck_ApplyUseStyle_Inner;
+    }
+
+    public override void Unload() {
+        IL_ItemSlot.DrawItemIcon -= DrawItemIcon;
+        IL_PlayerDrawLayers.DrawPlayer_27_HeldItem -= DrawPlayer_27_HeldItem;
+        IL_Player.ItemCheck_ApplyUseStyle_Inner -= ItemCheck_ApplyUseStyle_Inner;
+    }
+
+    private void DrawItemIcon(ILContext il) {
+        try {
+            ILCursor c = new(il);
+            c.GotoNext(i => i.MatchLdsfld("Terraria.GameContent.TextureAssets", "Item"));
+            ILLabel vanilla = il.DefineLabel();
+            c.Emit(OpCodes.Ldarg_0);
+            c.EmitDelegate((Item item) => item.ModItem is SoulWeapon);
+            c.Emit(OpCodes.Brfalse_S, vanilla);
+            c.Emit(OpCodes.Ldarg_0);
+            c.EmitDelegate((Item item) => {
+                SoulWeapon s = item.ModItem as SoulWeapon;
+                if (s.texture == null)
+                    s.ConstructTexture();
+                return s.texture;
+            });
+            c.Emit(OpCodes.Stloc_1);
+            ILLabel skipVanilla = il.DefineLabel();
+            c.Emit(OpCodes.Br_S, skipVanilla);
+            c.MarkLabel(vanilla);
+            c.GotoNext(MoveType.After, i => i.MatchStloc1());
+            c.MarkLabel(skipVanilla);
+        } catch (Exception e) {
+            MonoModHooks.DumpIL(this, il);
+            throw new ILPatchFailureException(this, il, e);
+        }
+    }
+
+    private void DrawPlayer_27_HeldItem(ILContext il) {
+        try {
+            ILCursor c = new(il);
+            // replacing texture
+            c.GotoNext(i => i.MatchLdsfld("Terraria.GameContent.TextureAssets", "Item"));
+            ILLabel vanilla = il.DefineLabel();
+            c.Emit(OpCodes.Ldloc_0); // load item var
+            c.EmitDelegate((Item item) => item.ModItem is SoulWeapon);
+            c.Emit(OpCodes.Brfalse_S, vanilla);
+            c.Emit(OpCodes.Ldloc_0);
+            c.EmitDelegate((Item item) => (item.ModItem as SoulWeapon).texture);
+            c.Emit(OpCodes.Stloc_3);
+            ILLabel skipVanilla = il.DefineLabel();
+            c.Emit(OpCodes.Br_S, skipVanilla);
+            c.MarkLabel(vanilla);
+            c.GotoNext(MoveType.After, i => i.MatchStloc3());
+            c.MarkLabel(skipVanilla);
+
+            // replacing item rectangle
+            c.GotoNext(i => i.MatchLdarg0(),
+                i => i.MatchLdfld<PlayerDrawSet>("drawPlayer"));
+            ILLabel vanilla2 = il.DefineLabel();
+            c.Emit(OpCodes.Ldloc_0);
+            c.EmitDelegate((Item item) => item.ModItem is SoulWeapon);
+            c.Emit(OpCodes.Brfalse_S, vanilla2);
+            c.Emit(OpCodes.Ldloc_0);
+            c.EmitDelegate((Item item) => new Rectangle(0, 0, item.width, item.height));
+            c.Emit(OpCodes.Stloc_S, (byte)5);
+            ILLabel skipVanilla2 = il.DefineLabel();
+            c.Emit(OpCodes.Br_S, skipVanilla2);
+            c.MarkLabel(vanilla2);
+            c.GotoNext(MoveType.After, i => i.MatchStloc(5));
+            c.MarkLabel(skipVanilla2);
+
+            // soul staves
+            ILLabel skipVanilla3 = il.DefineLabel();
+            c.GotoNext(i => i.MatchLdsfld<Item>("staff"));
+            c.Emit(OpCodes.Ldloc_0);
+            c.EmitDelegate((Item item) => item.ModItem is SoulWeapon s && (s.type == SoulWeaponType.Scepter || s.type == SoulWeaponType.Staff));
+            c.Emit(OpCodes.Brtrue_S, skipVanilla3);
+            c.GotoNext(MoveType.After, i => i.MatchBrfalse(out _));
+            c.MarkLabel(skipVanilla3);
+        } catch (Exception e) {
+            MonoModHooks.DumpIL(this, il);
+            throw new ILPatchFailureException(this, il, e);
+        }
+    }
+
+    private void ItemCheck_ApplyUseStyle_Inner(ILContext il) {
+        try {
+            ILCursor c = new(il);
+            ILLabel skipVanilla = il.DefineLabel();
+            c.GotoNext(i => i.MatchLdsfld<Item>("staff"));
+            c.Emit(OpCodes.Ldarg_2);
+            c.EmitDelegate((Item item) => item.ModItem is SoulWeapon s && (s.type == SoulWeaponType.Scepter || s.type == SoulWeaponType.Staff));
+            c.Emit(OpCodes.Brtrue_S, skipVanilla);
+            c.GotoNext(MoveType.After, i => i.MatchBrfalse(out _));
+            c.MarkLabel(skipVanilla);
+        } catch (Exception e) {
+            MonoModHooks.DumpIL(this, il);
+            throw new ILPatchFailureException(this, il, e);
+        }
+    }
 }
 
 public class SoulWeaponsConfig : ModConfig {

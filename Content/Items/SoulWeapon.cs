@@ -1,13 +1,14 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using ReLogic.Content;
+using SoulWeapons.Content.Projectiles;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 using Terraria;
-using Terraria.GameContent;
+using Terraria.DataStructures;
 using Terraria.ID;
 using Terraria.Localization;
 using Terraria.ModLoader;
@@ -44,8 +45,8 @@ public struct Frame(Asset<Texture2D> texture, int x, int y) {
     public int x = x; // size x of the image
     public int y = y; // size y of the image
 
-    public override bool Equals([NotNullWhen(true)] object obj) => obj is Frame f && this == f;
-    public override int GetHashCode() => base.GetHashCode();
+    public override readonly bool Equals([NotNullWhen(true)] object obj) => obj is Frame f && this == f;
+    public override readonly int GetHashCode() => base.GetHashCode();
 
     public static bool operator ==(Frame left, Frame right) => left.texture == right.texture && left.x == right.x && left.y == right.y;
     public static bool operator !=(Frame left, Frame right) => left.texture != right.texture && left.x != right.x && left.y != right.y;
@@ -61,13 +62,13 @@ public class SoulWeapon : ModItem {
     internal static Asset<Texture2D>[] materials;
     
     public UUID SoulWeaponID { get; set; }
-    SoulWeaponType type;
-    SubType subType;
+    public SoulWeaponType type;
+    public SubType subType;
     Frame[] frame;
     byte[] materialIDs; // 0 is blade/barrel/etc, 1 is handle, 2 is misc textures (sword guard, etc)
     byte stage;
     string name;
-    Texture2D texture;
+    public Texture2D texture;
 
     private static Frame GetFrames(string path, int x, int y) => new(ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Frames/{path}"), x, y);
     private static Asset<Texture2D> GetMat(string path) => ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Materials/{path}");
@@ -155,6 +156,16 @@ public class SoulWeapon : ModItem {
     }
 
     public override void SetDefaults() {
+        type = SoulWeaponType.Melee;
+        frame = [new(), new(), new()];
+        materialIDs = [0, 0, 0];
+        stage = 10;
+        name = "???";
+        Item.width = 40;
+        Item.height = 40;
+    }
+
+    public override void OnCreated(ItemCreationContext context) {
         SoulWeaponID = null;
         type = (SoulWeaponType)Main.rand.Next((int)SoulWeaponType.Count);
         int gunType = Main.rand.Next(3);
@@ -183,21 +194,25 @@ public class SoulWeapon : ModItem {
             _ => 401 // beyond post ml (unobtainable)
         };
         name = Main.rand.NextFromList<string>(type switch {
-            SoulWeaponType.Melee or SoulWeaponType.RangedMelee => [ "Throngler", "Flashy Sword Name" ],
-            SoulWeaponType.Yoyo => [ "Yoyo" ],
-            SoulWeaponType.Tome => [ "Tome" ],
-            SoulWeaponType.Scepter or SoulWeaponType.Staff => [ "Scepter" ],
-            SoulWeaponType.Whip => [ "Whip" ],
-            SoulWeaponType.Gun => [ "Gun" ],
-            SoulWeaponType.Bow => [ "Bow" ],
-            SoulWeaponType.Thrown => [ "Thrown" ],
-            SoulWeaponType.Pickaxe => [ "Pickaxe" ],
-            _ => [ "???" ]
+            SoulWeaponType.Melee or SoulWeaponType.RangedMelee => ["Throngler", "Flashy Sword Name"],
+            SoulWeaponType.Yoyo => ["Yoyo"],
+            SoulWeaponType.Tome => ["Tome"],
+            SoulWeaponType.Scepter or SoulWeaponType.Staff => ["Scepter"],
+            SoulWeaponType.Whip => ["Whip"],
+            SoulWeaponType.Gun => ["Gun"],
+            SoulWeaponType.Bow => ["Bow"],
+            SoulWeaponType.Thrown => ["Thrown"],
+            SoulWeaponType.Pickaxe => ["Pickaxe"],
+            _ => ["???"]
         });
         Init();
     }
 
     public void Init() {
+        Item.useTime = 20;
+        Item.useAnimation = 20;
+        Item.UseSound = SoundID.Item1;
+        Item.knockBack = 6f;
         switch (type) {
             case SoulWeaponType.Melee:
                 Item.DamageType = DamageClass.Melee;
@@ -206,39 +221,67 @@ public class SoulWeapon : ModItem {
             case SoulWeaponType.RangedMelee:
                 Item.DamageType = DamageClass.Melee;
                 Item.useStyle = ItemUseStyleID.Swing;
+                Item.useAnimation = 20;
+                Item.useTime = 20;
+                if (subType == SubType.Projectile) {
+                    
+                } else if (subType == SubType.FancySlash) {
+                    Item.shoot = ModContent.ProjectileType<EnergySlash>();
+                    Item.noMelee = true;
+                    Item.shootsEveryUse = true;
+                    Item.knockBack = 4.5f;
+                }
                 break;
             case SoulWeaponType.Yoyo:
-                Item.DamageType = DamageClass.Melee;
+                Item.DamageType = DamageClass.MeleeNoSpeed;
                 Item.useStyle = ItemUseStyleID.Shoot;
+                Item.shoot = ModContent.ProjectileType<Yoyo>();
+                Item.shootSpeed = 16f;
+                Item.useTime = 25;
+                Item.useAnimation = 25;
+                Item.channel = true;
+                Item.noMelee = true;
+                Item.noUseGraphic = true;
                 break;
             case SoulWeaponType.Tome:
                 Item.DamageType = DamageClass.Magic;
                 Item.useStyle = ItemUseStyleID.Shoot;
+                Item.shoot = ProjectileID.PurificationPowder;
+                Item.mana = 10;
                 break;
             case SoulWeaponType.Scepter:
                 Item.DamageType = DamageClass.Magic;
-                Item.staff[Type] = true;
                 Item.useStyle = ItemUseStyleID.Shoot;
+                Item.shoot = ProjectileID.PurificationPowder;
+                Item.mana = 10;
                 break;
             case SoulWeaponType.Staff:
                 Item.DamageType = DamageClass.Magic;
-                Item.staff[Type] = true;
                 Item.useStyle = ItemUseStyleID.Shoot;
+                Item.shoot = ProjectileID.PurificationPowder;
+                Item.mana = 10;
                 break;
             case SoulWeaponType.Whip:
                 Item.DamageType = DamageClass.SummonMeleeSpeed;
                 Item.useStyle = ItemUseStyleID.Swing;
+                Item.shoot = ModContent.ProjectileType<Whip>();
+                Item.shootSpeed = 2f;
+                Item.useTime = 30;
+                Item.useAnimation = 30;
+                //Item.channel = true;
+                Item.noMelee = true;
+                Item.noUseGraphic = true;
                 break;
             case SoulWeaponType.Gun:
                 Item.DamageType = DamageClass.Ranged;
                 Item.useStyle = ItemUseStyleID.Shoot;
-                Item.shoot = ItemID.PurificationPowder;
+                Item.shoot = ProjectileID.PurificationPowder;
                 Item.useAmmo = AmmoID.Bullet;
                 break;
             case SoulWeaponType.Bow:
                 Item.DamageType = DamageClass.Ranged;
                 Item.useStyle = ItemUseStyleID.Shoot;
-                Item.shoot = ItemID.PurificationPowder;
+                Item.shoot = ProjectileID.PurificationPowder;
                 Item.useAmmo = AmmoID.Arrow;
                 break;
             case SoulWeaponType.Thrown:
@@ -261,74 +304,89 @@ public class SoulWeapon : ModItem {
                 Item.height += frame[i].y;
             }
         }
-        Item.useTime = 20;
-        Item.useAnimation = 20;
-        Item.knockBack = 6;
         Item.value = Item.sellPrice(gold: (int)Math.Pow(stage + 1, 1.7), silver: (int)Math.IEEERemainder(Math.Pow(stage + 1, 1.7) * 100, 100));
         Item.rare = stage + 1;
-        Item.UseSound = SoundID.Item1;
         Item.SetNameOverride(name);
         Item.NetStateChanged();
     }
 
-    public Texture2D MergeTextures(Texture2D texture1, Texture2D texture2, Vector2 offset, SpriteBatch spriteBatch = null) {
+    public Texture2D MergeTextures(Texture2D texture1, Texture2D texture2, Vector2 offset) {
         int newWidth = Item.width;
         int newHeight = Item.height;
 
-        RenderTargetBinding[] oTargets = Main.graphics.GraphicsDevice.GetRenderTargets();
-        RenderTarget2D renderTarget = new(Main.graphics.GraphicsDevice, newWidth, newHeight);
+        Texture2D mergedTexture = new(Main.graphics.GraphicsDevice, newWidth, newHeight);
 
-        Main.graphics.GraphicsDevice.SetRenderTarget(renderTarget);
-        Main.graphics.GraphicsDevice.Clear(Color.Transparent);
-        spriteBatch ??= new(Main.graphics.GraphicsDevice);
+        Color[] texture1Data = new Color[texture1.Width * texture1.Height];
+        Color[] texture2Data = new Color[texture2.Width * texture2.Height];
+        Color[] mergedData = new Color[newWidth * newHeight];
+        texture1.GetData(texture1Data);
+        texture2.GetData(texture2Data);
 
-        spriteBatch.Begin();
-        spriteBatch.Draw(texture1, new Vector2(0, newHeight - texture1.Height), Color.White);
-        spriteBatch.Draw(texture2, new Vector2(offset.X, newHeight - texture2.Height - offset.Y), Color.White);
+        for (int y = 0; y < texture1.Height; y++) {
+            for (int x = 0; x < texture1.Width; x++) {
+                int mergedIndex = (y + (newHeight - texture1.Height)) * newWidth + x;
+                mergedData[mergedIndex] = texture1Data[y * texture1.Width + x];
+            }
+        }
 
-        spriteBatch.End();
-        Main.graphics.GraphicsDevice.SetRenderTargets(oTargets);
-        return renderTarget;
+        for (int y = 0; y < texture2.Height; y++) {
+            for (int x = 0; x < texture2.Width; x++) {
+                int mergedX = x + (int)offset.X;
+                int mergedY = y + (newHeight - texture2.Height - (int)offset.Y);
+
+                if (mergedX >= 0 && mergedX < newWidth && mergedY >= 0 && mergedY < newHeight) {
+                    int mergedIndex = mergedY * newWidth + mergedX;
+                    Color colorToSet = texture2Data[y * texture2.Width + x];
+
+                    if (colorToSet.A > 0)
+                        mergedData[mergedIndex] = colorToSet;
+                }
+            }
+        }
+
+        mergedTexture.SetData(mergedData);
+        return mergedTexture;
     }
 
     public void ConstructTexture() {
-        Texture2D t = null;// new(Main.graphics.GraphicsDevice, Item.width, Item.height);
+        Texture2D t;// new(Main.graphics.GraphicsDevice, Item.width, Item.height);
         switch (type) {
             case SoulWeaponType.Gun:
             case SoulWeaponType.Pickaxe:
             case SoulWeaponType.RangedMelee:
             case SoulWeaponType.Melee:
-                t = MergeTextures(frame[1].texture.Value, frame[0].texture.Value, new(frame[1].x - 2, frame[1].y - 2));
+                if (frame[1].texture != null)
+                    t = MergeTextures(frame[1].texture.Value, frame[0].texture.Value, new(frame[1].x - 2, frame[1].y - 2));
+                else if (frame[0].texture != null)
+                    t = frame[0].texture.Value;
+                else
+                    t = ModContent.Request<Texture2D>(Texture).Value;
                 break;
             default:
                 if (frame[1].texture != null)
                     t = MergeTextures(frame[0].texture.Value, frame[1].texture.Value, new(frame[0].x - 2, frame[0].y - 2));
-                else
+                else if (frame[0].texture != null)
                     t = frame[0].texture.Value;
+                else
+                    t = ModContent.Request<Texture2D>(Texture).Value;
                 break;
         }
         texture = t;
     }
-
     public override bool PreDrawInInventory(SpriteBatch spriteBatch, Vector2 position, Rectangle f, Color drawColor, Color itemColor, Vector2 origin, float scale) {
         if (texture == null)
             ConstructTexture();
         spriteBatch.Draw(texture, position, new Rectangle(0, 0, Item.width, Item.height), drawColor, 0, origin, scale, SpriteEffects.None, 0);
         return false;
-        //return base.PreDrawInInventory(spriteBatch, position, frame, drawColor, itemColor, origin, scale);
     }
 
     public override bool PreDrawInWorld(SpriteBatch spriteBatch, Color lightColor, Color alphaColor, ref float rotation, ref float scale, int whoAmI) {
-        /*position += new Vector2(0, Item.height / 2f);
-        for (int i = frame.Length - 1; i > -1; i--) {
-            if (frame[i].texture != null) { // how to dynamic render
-                position -= new Vector2(0, frame[i].texture.Value.Height * scale) / 2;
-                spriteBatch.Draw(frame[i].texture.Value, position, new Rectangle(0, 0, frame[i].texture.Value.Width, frame[i].texture.Value.Height), drawColor, 0, origin, scale, SpriteEffects.None, 0);
-                position += new Vector2(frame[i].x, -frame[i].y) * scale;
-            }
-        }
-        return false;*/
-        return true;
+        if (texture == null)
+            ConstructTexture();
+        Vector2 drawOrigin = new(Item.width / 2f, Item.height / 2f);
+        Vector2 drawPosition = Item.Bottom - Main.screenPosition - new Vector2(0, drawOrigin.Y);
+        spriteBatch.Draw(texture, drawPosition, new Rectangle(0, 0, Item.width, Item.height), lightColor, rotation, drawOrigin, scale, SpriteEffects.None, 0);
+        return false;
     }
 
     public Frame[] GetPrimaryFrameArray() {
@@ -352,7 +410,7 @@ public class SoulWeapon : ModItem {
 
     public Frame[] GetSecondaryFrameArray() {
         return type switch {
-            SoulWeaponType.Melee => handleFrames,
+            SoulWeaponType.Melee or SoulWeaponType.RangedMelee => handleFrames,
             SoulWeaponType.Tome => tomePatternFrames,
             SoulWeaponType.Staff => staffGemFrames,
             SoulWeaponType.Gun => subType == SubType.Pistol ? pistolHandleFrames :
@@ -429,9 +487,9 @@ public class SoulWeapon : ModItem {
         Item.holdStyle = 0;
         Item.knockBack = 0f;
         Item.pick = 0;
-        Item.rare = 0;
+        Item.rare = ItemRarityID.White;
         Item.scale = 1f;
-        Item.shoot = 0;
+        Item.shoot = ProjectileID.None;
         Item.tileBoost = 0;
         Item.useStyle = 0;
         Item.UseSound = null;
@@ -466,15 +524,15 @@ public class SoulWeapon : ModItem {
     }
 
     public override void LoadData(TagCompound tag) {
-        Reset(); // remove any modifications to stats done in SetDefaults
+        Reset();
         if (tag.TryGet("id", out byte[] id))
             SoulWeaponID = new UUID(id);
         if (tag.TryGet("type", out byte t))
             type = (SoulWeaponType)t;
-        if (type == SoulWeaponType.Melee || type == SoulWeaponType.Gun)
+        if (type == SoulWeaponType.RangedMelee || type == SoulWeaponType.Gun)
             if (tag.TryGet("subType", out byte st))
                 subType = (SubType)st;
-            else if (type == SoulWeaponType.Melee)
+            else if (type == SoulWeaponType.RangedMelee)
                 subType = SubType.Projectile;
             else if (type == SoulWeaponType.Gun)
                 subType = SubType.Pistol;
@@ -513,7 +571,19 @@ public class SoulWeapon : ModItem {
             damage /= 2; // give a harsh penalty to the weapon's damage if its unbound, to discourage using unbound weapons
     }
 
+    public override bool Shoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int pType, int damage, float knockback) {
+        if (type == SoulWeaponType.RangedMelee && subType >= SubType.FancySlash) {
+            float adjScale = player.GetAdjustedItemScale(Item);
+            Projectile.NewProjectile(source, player.MountedCenter, new Vector2(player.direction, 0), pType, damage, knockback, player.whoAmI, player.direction * player.gravDir, player.itemAnimationMax, adjScale);
+            NetMessage.SendData(MessageID.PlayerControls, -1, -1, null, player.whoAmI);
+        }
+
+        return base.Shoot(player, source, position, velocity, pType, damage, knockback);
+    }
+
     public override bool CanPickup(Player player) => CanPlayerWield(player);
+
+    public override bool CanStack(Item source) => false;
 
     public bool CanPlayerWield(Player player) {
         UUID uuid = player.GetModPlayer<SoulWieldingPlayer>().SoulWeaponID;

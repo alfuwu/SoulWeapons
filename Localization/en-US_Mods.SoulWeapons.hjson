@@ -1,17 +1,23 @@
 SoulWeapon: {
 	Unbound: "[c/FFEFAA:This weapon does not have an owner.]"
 	Incompatible: "[c/FF0000:This weapon rejects you.]"
+	Rejected: "[c/EE0000:This weapon rejects you.]"
 	Bound: "[c/9CA1FF:This weapon is bound to you.]"
 }
 
 Items: {
 	SoulWeapon: {
-		DisplayName: "{0}"
+		DisplayName: Soul Weapon
 		Tooltip:
 			'''
 			Template of an item
 			Replacing this tooltip is duty 
 			It's snowing on Mt.Fuji
+			'''
+		WhipTooltip:
+			'''
+			{$CommonItemTooltip.SummonTagDamage}
+			{$CommonItemTooltip.Whips}
 			'''
 	}
 }
@@ -35,4 +41,22 @@ Configs: {
 			Tooltip: ""
 		}
 	}
+}
+
+Buffs: {
+	WhipDebuff: {
+		DisplayName: Whip Debuff
+		Description: Mods.SoulWeapons.Buffs.WhipDebuff.Description
+	}
+
+	WhipDebuffFlat: {
+		DisplayName: Whip Debuff Flat
+		Description: Mods.SoulWeapons.Buffs.WhipDebuffFlat.Description
+	}
+}
+
+Projectiles: {
+	EnergySlash.DisplayName: Energy Slash
+	Whip.DisplayName: Whip
+	Yoyo.DisplayName: Yoyo
 }
