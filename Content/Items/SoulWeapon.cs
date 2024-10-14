@@ -3,11 +3,10 @@ using Microsoft.Xna.Framework.Graphics;
 using ReLogic.Content;
 using System;
 using System.Collections.Generic;
-using System.Drawing.Drawing2D;
 using System.IO;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using Terraria;
+using Terraria.GameContent;
 using Terraria.ID;
 using Terraria.Localization;
 using Terraria.ModLoader;
@@ -49,13 +48,13 @@ public struct Frame(Asset<Texture2D> texture, int x, int y) {
 }
 
 public class SoulWeapon : ModItem {
-    public static Frame[] meleeFrames, shinyMeleeFrames, yoyoFrames,
+    internal static Frame[] meleeFrames, shinyMeleeFrames, yoyoFrames,
         tomeFrames, scepterFrames, staffFrames, whipFrames, pistolFrames, assaultRifleFrames, rifleFrames, bowFrames,
         thrownFrames, pickaxeFrames; // primary textures
-    public static Frame[] handleFrames, yoyoPatternFrames, tomePatternFrames,
+    internal static Frame[] handleFrames, yoyoPatternFrames, tomePatternFrames,
         staffGemFrames, pistolHandleFrames, assaultRifleHandleFrames, rifleHandleFrames, pickaxeHandleFrames; // secondary textures
-    public static Frame[] miscFrames; // tertiary sprites
-    public static Asset<Texture2D>[] materials;
+    internal static Frame[] miscFrames; // tertiary sprites
+    internal static Asset<Texture2D>[] materials;
     
     public UUID SoulWeaponID { get; set; }
     SoulWeaponType type;
@@ -71,43 +70,43 @@ public class SoulWeapon : ModItem {
     public override void Load() {
         // primary sprites
         meleeFrames = [
-            GetFrames("Sword_1", 0, 0),
+            GetFrames("Sword_1", 30, 38),
         ];
         shinyMeleeFrames = [
-            GetFrames("Sword_1", 0, 0),
+            GetFrames("Sword_1", 30, 38),
         ];
         yoyoFrames = [
-            GetFrames("Yoyo_1", 0, 0),
+            GetFrames("Yoyo_1", 30, 26),
         ];
         tomeFrames = [
-            GetFrames("Tome_1", 0, 0),
+            GetFrames("Tome_1", 28, 32),
         ];
         scepterFrames = [
-            GetFrames("Sword_1", 0, 0),
+            GetFrames("Sword_1", 30, 38),
         ];
         staffFrames = [
-            GetFrames("Sword_1", 0, 0),
+            GetFrames("Sword_1", 30, 38),
         ];
         whipFrames = [
-            GetFrames("Sword_1", 0, 0),
+            GetFrames("Sword_1", 30, 38),
         ];
         pistolFrames = [
-            GetFrames("Sword_1", 0, 0),
+            GetFrames("Sword_1", 30, 38),
         ];
         assaultRifleFrames = [
-            GetFrames("Sword_1", 0, 0),
+            GetFrames("Sword_1", 30, 38),
         ];
         rifleFrames = [
-            GetFrames("Sword_1", 0, 0),
+            GetFrames("Sword_1", 30, 38),
         ];
         bowFrames = [
-            GetFrames("Sword_1", 0, 0),
+            GetFrames("Sword_1", 30, 38),
         ];
         thrownFrames = [
-            GetFrames("Dagger_1", 0, 0),
+            GetFrames("Dagger_1", 10, 24),
         ];
         pickaxeFrames = [
-            GetFrames("Sword_1", 0, 0),
+            GetFrames("Sword_1", 30, 38),
         ];
 
         // secondary sprites
@@ -118,7 +117,7 @@ public class SoulWeapon : ModItem {
             GetFrames("SwordHandle_1", 16, 16),
         ];
         tomePatternFrames = [
-            GetFrames("TomePattern_1", 16, 16),
+            GetFrames("TomePattern_1", 0, 0),
         ];
         staffGemFrames = [
             GetFrames("SwordHandle_1", 16, 16),
@@ -130,6 +129,9 @@ public class SoulWeapon : ModItem {
             GetFrames("SwordHandle_1", 16, 16),
         ];
         rifleHandleFrames = [
+            GetFrames("SwordHandle_1", 16, 16),
+        ];
+        pickaxeHandleFrames = [
             GetFrames("SwordHandle_1", 16, 16),
         ];
 
@@ -187,6 +189,7 @@ public class SoulWeapon : ModItem {
             SoulWeaponType.Pickaxe => [ "Pickaxe" ],
             _ => [ "???" ]
         });
+        Init();
     }
 
     public void Init() {
@@ -245,12 +248,18 @@ public class SoulWeapon : ModItem {
                 Item.damage = 1;
                 break;
         }
-        Item.width = 40;
-        Item.height = 40;
+        Item.width = 0;
+        Item.height = 0;
+        for (int i = 0; i < frame.Length; i++) {
+            if (frame[i].texture != null) {
+                Item.width += frame[i].texture.Value.Width;
+                Item.height += frame[i].texture.Value.Height;
+            }
+        }
         Item.useTime = 20;
         Item.useAnimation = 20;
         Item.knockBack = 6;
-        Item.value = Item.buyPrice(gold: (int)Math.Pow(stage, 1.7), silver: (int)Math.IEEERemainder(Math.Pow(stage, 1.7) * 100, 100));
+        Item.value = Item.sellPrice(gold: (int)Math.Pow(stage + 1, 1.7), silver: (int)Math.IEEERemainder(Math.Pow(stage + 1, 1.7) * 100, 100));
         Item.rare = stage + 1;
         Item.UseSound = SoundID.Item1;
         Item.SetNameOverride(name);
@@ -258,18 +267,14 @@ public class SoulWeapon : ModItem {
     }
 
     public override bool PreDrawInInventory(SpriteBatch spriteBatch, Vector2 position, Rectangle f, Color drawColor, Color itemColor, Vector2 origin, float scale) {
-        Vector2 size = new();
-
-        for (int i = 0; i < frame.Length; i++)
-            if (frame[i].texture != null)
-                size += new Vector2(frame[i].x, frame[i].y);
-        f = new Rectangle(0, 0, (int)size.X, (int)size.Y);
-        position += new Vector2(-size.X, size.Y);
+        //f = new Rectangle(0, 0, (int)size.X, (int)size.Y);
+        Mod.Logger.Info(scale);
+        position += new Vector2(0, Item.height * (scale / 2));
         for (int i = frame.Length - 1; i > -1; i--) {
             if (frame[i].texture != null) { // how to dynamic render
-                position -= new Vector2(0, frame[i].texture.Value.Height);
-                spriteBatch.Draw(frame[i].texture.Value, position, drawColor);
-                position += new Vector2(frame[i].x * scale, frame[i].texture.Value.Height - frame[i].y * scale);
+                position -= new Vector2(0, frame[i].texture.Value.Height / 2f * scale);
+                spriteBatch.Draw(frame[i].texture.Value, position, new Rectangle(0, 0, frame[i].texture.Value.Width, frame[i].texture.Value.Height), drawColor, 0, origin, scale, SpriteEffects.None, 0);
+                position += new Vector2(frame[i].x, -frame[i].y) * scale;
             }
         }
         return false;
@@ -277,7 +282,16 @@ public class SoulWeapon : ModItem {
     }
 
     public override bool PreDrawInWorld(SpriteBatch spriteBatch, Color lightColor, Color alphaColor, ref float rotation, ref float scale, int whoAmI) {
-        return base.PreDrawInWorld(spriteBatch, lightColor, alphaColor, ref rotation, ref scale, whoAmI);
+        /*position += new Vector2(0, Item.height / 2f);
+        for (int i = frame.Length - 1; i > -1; i--) {
+            if (frame[i].texture != null) { // how to dynamic render
+                position -= new Vector2(0, frame[i].texture.Value.Height * scale) / 2;
+                spriteBatch.Draw(frame[i].texture.Value, position, new Rectangle(0, 0, frame[i].texture.Value.Width, frame[i].texture.Value.Height), drawColor, 0, origin, scale, SpriteEffects.None, 0);
+                position += new Vector2(frame[i].x, -frame[i].y) * scale;
+            }
+        }
+        return false;*/
+        return true;
     }
 
     public Frame[] GetPrimaryFrameArray() {
@@ -343,6 +357,55 @@ public class SoulWeapon : ModItem {
         name = reader.ReadString();
     }
 
+    public void Reset() {
+        Item.crit = 0;
+        Item.reuseDelay = 0;
+        Item.consumeAmmoOnFirstShotOnly = false;
+        Item.consumeAmmoOnLastShotOnly = false;
+        Item.InterruptChannelOnHurt = false;
+        Item.StopAnimationOnHurt = false;
+        Item.DamageType = DamageClass.Default;
+        Item.ChangePlayerDirectionOnShoot = true;
+        Item.ArmorPenetration = 0;
+        Item.material = false;
+        Item.mana = 0;
+        Item.channel = false;
+        Item.manaIncrease = 0;
+        Item.noMelee = false;
+        Item.noUseGraphic = false;
+        Item.lifeRegen = 0;
+        Item.shoot = ItemID.None;
+        Item.shootSpeed = 0f;
+        Item.alpha = 0;
+        Item.ammo = AmmoID.None;
+        Item.useAmmo = AmmoID.None;
+        Item.autoReuse = false;
+        Item.axe = 0;
+        Item.healMana = 0;
+        Item.potion = false;
+        Item.color = default;
+        Item.glowMask = -1;
+        Item.consumable = false;
+        Item.damage = -1;
+        Item.hammer = 0;
+        Item.healLife = 0;
+        Item.holdStyle = 0;
+        Item.knockBack = 0f;
+        Item.pick = 0;
+        Item.rare = 0;
+        Item.scale = 1f;
+        Item.shoot = 0;
+        Item.tileBoost = 0;
+        Item.useStyle = 0;
+        Item.UseSound = null;
+        Item.useTime = 100;
+        Item.useAnimation = 100;
+        Item.value = 0;
+        Item.useTurn = false;
+        Item.buy = false;
+        Item.shootsEveryUse = false;
+    }
+
     public override void SaveData(TagCompound tag) {
         if (SoulWeaponID is not null)
             tag["id"] = SoulWeaponID.ToByteArray();
@@ -366,6 +429,7 @@ public class SoulWeapon : ModItem {
     }
 
     public override void LoadData(TagCompound tag) {
+        Reset(); // remove any modifications to stats done in SetDefaults
         if (tag.TryGet("id", out byte[] id))
             SoulWeaponID = new UUID(id);
         if (tag.TryGet("type", out byte t))
@@ -388,7 +452,7 @@ public class SoulWeapon : ModItem {
         if (tag.TryGet("stage", out byte s))
             stage = s;
         Item.damage = tag.TryGet("damage", out int dmg) ? dmg : 1;
-        Init(); // is there a better way to do this?
+        Init();
     }
 
     public override void ModifyTooltips(List<TooltipLine> tooltips) {
