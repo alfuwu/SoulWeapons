@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using ReLogic.Content;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
 using Terraria;
@@ -43,6 +44,9 @@ public struct Frame(Asset<Texture2D> texture, int x, int y) {
     public int x = x; // size x of the image
     public int y = y; // size y of the image
 
+    public override bool Equals([NotNullWhen(true)] object obj) => obj is Frame f && this == f;
+    public override int GetHashCode() => base.GetHashCode();
+
     public static bool operator ==(Frame left, Frame right) => left.texture == right.texture && left.x == right.x && left.y == right.y;
     public static bool operator !=(Frame left, Frame right) => left.texture != right.texture && left.x != right.x && left.y != right.y;
 }
@@ -63,6 +67,7 @@ public class SoulWeapon : ModItem {
     byte[] materialIDs; // 0 is blade/barrel/etc, 1 is handle, 2 is misc textures (sword guard, etc)
     byte stage;
     string name;
+    Texture2D texture;
 
     private static Frame GetFrames(string path, int x, int y) => new(ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Frames/{path}"), x, y);
     private static Asset<Texture2D> GetMat(string path) => ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Materials/{path}");
@@ -79,7 +84,7 @@ public class SoulWeapon : ModItem {
             GetFrames("Yoyo_1", 30, 26),
         ];
         tomeFrames = [
-            GetFrames("Tome_1", 28, 32),
+            GetFrames("Tome_1", 0, 0),
         ];
         scepterFrames = [
             GetFrames("Sword_1", 30, 38),
@@ -117,7 +122,7 @@ public class SoulWeapon : ModItem {
             GetFrames("SwordHandle_1", 16, 16),
         ];
         tomePatternFrames = [
-            GetFrames("TomePattern_1", 0, 0),
+            GetFrames("TomePattern_1", 28, 32),
         ];
         staffGemFrames = [
             GetFrames("SwordHandle_1", 16, 16),
@@ -252,8 +257,8 @@ public class SoulWeapon : ModItem {
         Item.height = 0;
         for (int i = 0; i < frame.Length; i++) {
             if (frame[i].texture != null) {
-                Item.width += frame[i].texture.Value.Width;
-                Item.height += frame[i].texture.Value.Height;
+                Item.width += frame[i].x;
+                Item.height += frame[i].y;
             }
         }
         Item.useTime = 20;
@@ -266,17 +271,49 @@ public class SoulWeapon : ModItem {
         Item.NetStateChanged();
     }
 
-    public override bool PreDrawInInventory(SpriteBatch spriteBatch, Vector2 position, Rectangle f, Color drawColor, Color itemColor, Vector2 origin, float scale) {
-        //f = new Rectangle(0, 0, (int)size.X, (int)size.Y);
-        Mod.Logger.Info(scale);
-        position += new Vector2(0, Item.height * (scale / 2));
-        for (int i = frame.Length - 1; i > -1; i--) {
-            if (frame[i].texture != null) { // how to dynamic render
-                position -= new Vector2(0, frame[i].texture.Value.Height / 2f * scale);
-                spriteBatch.Draw(frame[i].texture.Value, position, new Rectangle(0, 0, frame[i].texture.Value.Width, frame[i].texture.Value.Height), drawColor, 0, origin, scale, SpriteEffects.None, 0);
-                position += new Vector2(frame[i].x, -frame[i].y) * scale;
-            }
+    public Texture2D MergeTextures(Texture2D texture1, Texture2D texture2, Vector2 offset, SpriteBatch spriteBatch = null) {
+        int newWidth = Item.width;
+        int newHeight = Item.height;
+
+        RenderTargetBinding[] oTargets = Main.graphics.GraphicsDevice.GetRenderTargets();
+        RenderTarget2D renderTarget = new(Main.graphics.GraphicsDevice, newWidth, newHeight);
+
+        Main.graphics.GraphicsDevice.SetRenderTarget(renderTarget);
+        Main.graphics.GraphicsDevice.Clear(Color.Transparent);
+        spriteBatch ??= new(Main.graphics.GraphicsDevice);
+
+        spriteBatch.Begin();
+        spriteBatch.Draw(texture1, new Vector2(0, newHeight - texture1.Height), Color.White);
+        spriteBatch.Draw(texture2, new Vector2(offset.X, newHeight - texture2.Height - offset.Y), Color.White);
+
+        spriteBatch.End();
+        Main.graphics.GraphicsDevice.SetRenderTargets(oTargets);
+        return renderTarget;
+    }
+
+    public void ConstructTexture() {
+        Texture2D t = null;// new(Main.graphics.GraphicsDevice, Item.width, Item.height);
+        switch (type) {
+            case SoulWeaponType.Gun:
+            case SoulWeaponType.Pickaxe:
+            case SoulWeaponType.RangedMelee:
+            case SoulWeaponType.Melee:
+                t = MergeTextures(frame[1].texture.Value, frame[0].texture.Value, new(frame[1].x - 2, frame[1].y - 2));
+                break;
+            default:
+                if (frame[1].texture != null)
+                    t = MergeTextures(frame[0].texture.Value, frame[1].texture.Value, new(frame[0].x - 2, frame[0].y - 2));
+                else
+                    t = frame[0].texture.Value;
+                break;
         }
+        texture = t;
+    }
+
+    public override bool PreDrawInInventory(SpriteBatch spriteBatch, Vector2 position, Rectangle f, Color drawColor, Color itemColor, Vector2 origin, float scale) {
+        if (texture == null)
+            ConstructTexture();
+        spriteBatch.Draw(texture, position, new Rectangle(0, 0, Item.width, Item.height), drawColor, 0, origin, scale, SpriteEffects.None, 0);
         return false;
         //return base.PreDrawInInventory(spriteBatch, position, frame, drawColor, itemColor, origin, scale);
     }
