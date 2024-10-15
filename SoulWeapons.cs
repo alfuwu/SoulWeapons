@@ -3,6 +3,7 @@ using Mono.Cecil.Cil;
 using MonoMod.Cil;
 using SoulWeapons.Content.Items;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using Terraria;
@@ -163,4 +164,34 @@ public class SoulWieldingPlayer : ModPlayer {
     }
 
     public override void LoadData(TagCompound tag) => SoulWeaponID = tag.TryGet("id", out byte[] uuid) ? new UUID(uuid) : null;
+}
+
+public class SaveSoulWeapons : ModSystem {
+    public override void SaveWorldData(TagCompound tag) {
+        List<TagCompound> soulWeaponsInWorld = [];
+        foreach (Item i in Main.ActiveItems) {
+            if (i.ModItem is SoulWeapon) {
+                TagCompound t = ItemIO.Save(i);
+                t["position"] = i.position;
+                soulWeaponsInWorld.Add(t);
+            }
+        }
+        if (soulWeaponsInWorld.Count > 0 && !ModLoader.HasMod("StubbornItems")) // dont want to duplicate items, so dont save soul weapons if a mod that already saves item positions is loaded
+            tag["SoulWeapons"] = soulWeaponsInWorld;
+    }
+
+    public override void LoadWorldData(TagCompound tag) {
+        if (tag.TryGet("SoulWeapons", out TagCompound[] soulWeapons)) {
+            foreach (TagCompound t in soulWeapons) {
+                if (t.TryGet("position", out Vector2 position)) {
+                    try {
+                        Item i = ItemIO.Load(t);
+                        Item.NewItem(new EntitySource_Misc("SoulWeaponLoaded"), position, i);
+                    } catch {
+                        Mod.Logger.Warn("Unable to load Soul Weapon at position " + position);
+                    }
+                }
+            }
+        }
+    }
 }

@@ -9,41 +9,33 @@ using Terraria;
 
 namespace SoulWeapons.Content.Projectiles;
 
-public class EnergySlash : ModProjectile
-{
-
-    public float Direction
-    {
+public class EnergySlash : ModProjectile {
+    public float Direction {
         get => Projectile.ai[0];
         set => Projectile.ai[0] = value;
     }
 
-    public float MaxTime
-    {
+    public float MaxTime {
         get => Projectile.ai[1];
         set => Projectile.ai[1] = value;
     }
 
-    public float Scale
-    {
+    public float Scale {
         get => Projectile.ai[2];
         set => Projectile.ai[2] = value;
     }
 
-    public float Age
-    {
+    public float Age {
         get => Projectile.localAI[0];
         set => Projectile.localAI[0] = value;
     }
 
-    public override void SetStaticDefaults()
-    {
+    public override void SetStaticDefaults() {
         ProjectileID.Sets.AllowsContactDamageFromJellyfish[Type] = true;
         Main.projFrames[Type] = 4;
     }
 
-    public override void SetDefaults()
-    {
+    public override void SetDefaults() {
         Projectile.width = 16;
         Projectile.height = 16;
         Projectile.friendly = true;
@@ -62,11 +54,9 @@ public class EnergySlash : ModProjectile
         Projectile.noEnchantmentVisuals = true;
     }
 
-    public override void AI()
-    {
-        // if (Age == 0f) {
+    public override void AI() {
+        // if (Age == 0f)
         // 	SoundEngine.PlaySound(SoundID.Item60 with { Volume = 0.65f }, Projectile.position);
-        // }
 
         Age++;
         Player player = Main.player[Projectile.owner];
@@ -85,8 +75,7 @@ public class EnergySlash : ModProjectile
         float dustRotation = Projectile.rotation + Main.rand.NextFloatDirection() * MathHelper.PiOver2 * 0.7f;
         Vector2 dustPosition = Projectile.Center + dustRotation.ToRotationVector2() * 84f * Projectile.scale;
         Vector2 dustVelocity = (dustRotation + Direction * MathHelper.PiOver2).ToRotationVector2();
-        if (Main.rand.NextFloat() * 2f < Projectile.Opacity)
-        {
+        if (Main.rand.NextFloat() * 2f < Projectile.Opacity) {
             Color dustColor = Color.Lerp(Color.Gold, Color.White, Main.rand.NextFloat() * 0.3f);
             Dust coloredDust = Dust.NewDustPerfect(Projectile.Center + dustRotation.ToRotationVector2() * (Main.rand.NextFloat() * 80f * Projectile.scale + 20f * Projectile.scale), DustID.FireworksRGB, dustVelocity * 1f, 100, dustColor, 0.4f);
             coloredDust.fadeIn = 0.4f + Main.rand.NextFloat() * 0.15f;
@@ -100,15 +89,13 @@ public class EnergySlash : ModProjectile
         if (Age >= MaxTime)
             Projectile.Kill();
 
-        for (float i = -MathHelper.PiOver4; i <= MathHelper.PiOver4; i += MathHelper.PiOver2)
-        {
+        for (float i = -MathHelper.PiOver4; i <= MathHelper.PiOver4; i += MathHelper.PiOver2) {
             Rectangle rectangle = Utils.CenteredRectangle(Projectile.Center + (Projectile.rotation + i).ToRotationVector2() * 70f * Projectile.scale, new Vector2(60f * Projectile.scale, 60f * Projectile.scale));
             Projectile.EmitEnchantmentVisualsAt(rectangle.TopLeft(), rectangle.Width, rectangle.Height);
         }
     }
 
-    public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox)
-    {
+    public override bool? Colliding(Rectangle projHitbox, Rectangle targetHitbox) {
         float coneLength = 94f * Projectile.scale;
         float collisionRotation = MathHelper.Pi * 2f / 25f * Direction;
         float maximumAngle = MathHelper.PiOver4;
@@ -118,8 +105,7 @@ public class EnergySlash : ModProjectile
             return true;
 
         float backOfTheSwing = Utils.Remap(Age, MaxTime * 0.3f, MaxTime * 0.5f, 1f, 0f);
-        if (backOfTheSwing > 0f)
-        {
+        if (backOfTheSwing > 0f) {
             float coneRotation2 = coneRotation - MathHelper.PiOver4 * Direction * backOfTheSwing;
             if (targetHitbox.IntersectsConeSlowMoreAccurate(Projectile.Center, coneLength, coneRotation2, maximumAngle))
                 return true;
@@ -128,24 +114,21 @@ public class EnergySlash : ModProjectile
         return false;
     }
 
-    public override void CutTiles()
-    {
+    public override void CutTiles() {
         Vector2 starting = (Projectile.rotation - MathHelper.PiOver4).ToRotationVector2() * 60f * Projectile.scale;
         Vector2 ending = (Projectile.rotation + MathHelper.PiOver4).ToRotationVector2() * 60f * Projectile.scale;
         float width = 60f * Projectile.scale;
         Utils.PlotTileLine(Projectile.Center + starting, Projectile.Center + ending, width, DelegateMethods.CutTiles);
     }
 
-    public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
-    {
+    public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone) {
         ParticleOrchestrator.RequestParticleSpawn(clientOnly: false, ParticleOrchestraType.Excalibur,
             new ParticleOrchestraSettings { PositionInWorld = Main.rand.NextVector2FromRectangle(target.Hitbox) },
             Projectile.owner);
         hit.HitDirection = Main.player[Projectile.owner].Center.X < target.Center.X ? 1 : -1;
     }
 
-    public override void OnHitPlayer(Player target, Player.HurtInfo info)
-    {
+    public override void OnHitPlayer(Player target, Player.HurtInfo info) {
         ParticleOrchestrator.RequestParticleSpawn(clientOnly: false, ParticleOrchestraType.Excalibur,
             new ParticleOrchestraSettings { PositionInWorld = Main.rand.NextVector2FromRectangle(target.Hitbox) },
             Projectile.owner);
@@ -153,8 +136,7 @@ public class EnergySlash : ModProjectile
         info.HitDirection = Main.player[Projectile.owner].Center.X < target.Center.X ? 1 : -1;
     }
 
-    public override bool PreDraw(ref Color lightColor)
-    {
+    public override bool PreDraw(ref Color lightColor) {
         Vector2 position = Projectile.Center - Main.screenPosition;
         Texture2D texture = TextureAssets.Projectile[Type].Value;
         Rectangle sourceRectangle = texture.Frame(1, 4);
@@ -184,8 +166,7 @@ public class EnergySlash : ModProjectile
         Main.EntitySpriteDraw(texture, position, texture.Frame(1, 4, 0, 3), Color.White * 0.5f * lerpTime, Projectile.rotation + Direction * -0.05f, origin, scale * 0.8f, spriteEffects, 0f);
         Main.EntitySpriteDraw(texture, position, texture.Frame(1, 4, 0, 3), Color.White * 0.4f * lerpTime, Projectile.rotation + Direction * -0.1f, origin, scale * 0.6f, spriteEffects, 0f);
 
-        for (float i = 0f; i < 8f; i += 1f)
-        {
+        for (float i = 0f; i < 8f; i += 1f) {
             float edgeRotation = Projectile.rotation + Direction * i * (MathHelper.Pi * -2f) * 0.025f + Utils.Remap(percentageOfLife, 0f, 1f, 0f, MathHelper.PiOver4) * Direction;
             Vector2 drawPos = position + edgeRotation.ToRotationVector2() * (texture.Width * 0.5f - 6f) * scale;
             DrawPrettyStarSparkle(Projectile.Opacity, SpriteEffects.None, drawPos, new Color(255, 255, 255, 0) * lerpTime * (i / 9f), middleMediumColor, percentageOfLife, 0f, 0.5f, 0.5f, 1f, edgeRotation, new Vector2(0f, Utils.Remap(percentageOfLife, 0f, 1f, 3f, 0f)) * scale, Vector2.One * scale);
@@ -196,8 +177,7 @@ public class EnergySlash : ModProjectile
         return false;
     }
 
-    private static void DrawPrettyStarSparkle(float opacity, SpriteEffects dir, Vector2 drawPos, Color drawColor, Color shineColor, float flareCounter, float fadeInStart, float fadeInEnd, float fadeOutStart, float fadeOutEnd, float rotation, Vector2 scale, Vector2 fatness)
-    {
+    private static void DrawPrettyStarSparkle(float opacity, SpriteEffects dir, Vector2 drawPos, Color drawColor, Color shineColor, float flareCounter, float fadeInStart, float fadeInEnd, float fadeOutStart, float fadeOutEnd, float rotation, Vector2 scale, Vector2 fatness) {
         Texture2D sparkleTexture = TextureAssets.Extra[98].Value;
         Color bigColor = shineColor * opacity * 0.5f;
         bigColor.A = 0;

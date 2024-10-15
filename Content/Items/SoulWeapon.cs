@@ -562,8 +562,18 @@ public class SoulWeapon : ModItem {
 
     public override void UpdateInventory(Player player) {
         if (!CanPlayerWield(player))
-            player.DropItem(player.GetSource_FromThis("IncompatibleSoulWeapon"), player.Center, ref Unsafe.AsRef(Item));
+            player.DropItem(player.GetSource_FromThis("IncompatibleSoulWeapon"), player.position, ref Unsafe.AsRef(Item));
     }
+
+    public override bool CanRightClick() => SoulWeaponID is null && Main.LocalPlayer.GetModPlayer<SoulWieldingPlayer>().SoulWeaponID is null;
+
+    public override void RightClick(Player player) {
+        SoulWieldingPlayer s = player.GetModPlayer<SoulWieldingPlayer>();
+        if (s.SoulWeaponID is null && SoulWeaponID is null)
+            s.SoulWeaponID = SoulWeaponID = new();
+    }
+
+    public override bool ConsumeItem(Player player) => false; // prevents right clicking from deleting the soul weapon
 
     public override void ModifyWeaponDamage(Player player, ref StatModifier damage) {
         UUID uuid = player.GetModPlayer<SoulWieldingPlayer>().SoulWeaponID;
