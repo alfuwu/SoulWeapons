@@ -176,7 +176,7 @@ public class SaveSoulWeapons : ModSystem {
                 soulWeaponsInWorld.Add(t);
             }
         }
-        if (soulWeaponsInWorld.Count > 0 && !ModLoader.HasMod("StubbornItems")) // dont want to duplicate items, so dont save soul weapons if a mod that already saves item positions is loaded
+        if (soulWeaponsInWorld.Count > 0 && !ModLoader.HasMod("StubbornItems")) // dont want to duplicate items, so dont save soul weapons if a mod that already saves items in world is loaded
             tag["SoulWeapons"] = soulWeaponsInWorld;
     }
 

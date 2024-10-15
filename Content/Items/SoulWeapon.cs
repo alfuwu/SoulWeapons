@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using Terraria;
 using Terraria.DataStructures;
 using Terraria.ID;
@@ -52,7 +53,7 @@ public struct Frame(Asset<Texture2D> texture, int x, int y) {
     public static bool operator !=(Frame left, Frame right) => left.texture != right.texture && left.x != right.x && left.y != right.y;
 }
 
-public class SoulWeapon : ModItem {
+public partial class SoulWeapon : ModItem {
     internal static Frame[] meleeFrames, shinyMeleeFrames, yoyoFrames,
         tomeFrames, scepterFrames, staffFrames, whipFrames, pistolFrames, assaultRifleFrames, rifleFrames, bowFrames,
         thrownFrames, pickaxeFrames; // primary textures
@@ -72,6 +73,94 @@ public class SoulWeapon : ModItem {
 
     private static Frame GetFrames(string path, int x, int y) => new(ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Frames/{path}"), x, y);
     private static Asset<Texture2D> GetMat(string path) => ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Materials/{path}");
+
+    const string consonants = "bcdfghjklmnprstvwz";
+    const string vowels = "aeiou";
+    static readonly string[] consonantClusters = ["st", "th", "ch", "sh", "ph", "tr", "dr", "cl", "br", "cr", "gr", "fr", "bl", "gl"];
+    static readonly string[] commonSyllables = ["ar", "el", "an", "en", "er", "or", "al", "in", "on", "ir", "il", "us", "is"];
+    static readonly string[] prefixes = ["Ex", "Al", "Gr", "Ze", "Ka", "Th", "Ari", "Fi", "Val", "For", "Gal", "Gil"];
+    static readonly string[] suffixes = ["dor", "mir", "mar", "ros", "gon", "lore", "bur", "din", "or"];
+    static readonly string[] badClusters = ["wvr", "rvw", "vwr", "vrw", "rwv", "pq", "qp", "xk", "kx", "wx", "xw", "vrz", "rvz", "rzv", "zrv", "zvr", "vzr",
+        "ouae", "eai", "aio", "oie", "iua", "iae", "iau"]; // permutations are hardcoded because yes
+    static readonly Regex BadConsonantRegex = new(@"([^aeiou])[^aeiou]+\1|[^aeiou]{4,}|(t|w)[^aeiouh]+|([^aeiou])\3{2,}"); // matches "unenglishy" consonant clusters, which will get replaced with a single consonant instead
+
+    public static string GenerateName() {
+        // add a renaming system so players can name their weapons what they want if they dislike the random name (which will probably be quite a common occurence if i'm bein honest here)
+        // also add a config option that makes names be chosen from a static list if people prefer more "handpicked" names
+        // i like the randomnes of this system tho (one of the names i got from it was fororor ffs, that's an amazin name)
+        string name = "";
+
+        char RandomConsonant() {
+            char c = consonants[Main.rand.Next(18)];
+            while (c is 'x' or 'w' && name.Contains(c))
+                c = consonants[Main.rand.Next(18)];
+            if (name.Length <= 0 && c == 'p')
+                c = consonants[Main.rand.Next(18)];
+            return c;
+        }
+
+        char RandomVowel() {
+            char v = vowels[Main.rand.Next(5)];
+            if (name.Length > 0 && v == name[^1] || name.Length <= 0 && v == 'u') // u is a bad vowel to start names with
+                v = vowels[Main.rand.Next(5)];
+            return v;
+        }
+
+        string RandomConsonantCluster() => consonantClusters[Main.rand.Next(14)];
+
+        string RandomSyllable() => commonSyllables[Main.rand.Next(13)];
+
+        void GenerateSyllable(byte structure) {
+            switch (structure) {
+                case 0:
+                    name += RandomConsonant();
+                    name += RandomVowel();
+                    name += RandomConsonant();
+                    break;
+                case 1:
+                    name += RandomVowel();
+                    name += RandomConsonant();
+                    break;
+                case 2:
+                    name += RandomConsonant();
+                    name += RandomVowel();
+                    break;
+                case 3:
+                    name += RandomVowel();
+                    name += RandomConsonant();
+                    name += RandomVowel();
+                    break;
+                case 4:
+                    name += RandomConsonantCluster();
+                    name += RandomVowel();
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        string PostProcessName() { // maybe add a system for rare hyphenated names?
+            // also possibly add a system to break up most vowel clusters, as they're quite common
+            foreach (string bad in badClusters)
+                if (name.Contains(bad))
+                    name = name.Replace(bad, RandomConsonant().ToString());
+            name = BadConsonantRegex.Replace(name, match => RandomConsonant().ToString());
+            return name[..1].ToUpper() + name[1..];
+        }
+
+        if (Main.rand.NextBool(5))
+            name += prefixes[Main.rand.Next(12)];
+
+        int j = (Main.rand.NextBool(10) ? Main.rand.Next(2) : 0) + 1;
+        for (int i = 0; i < j; i++)
+            GenerateSyllable((byte)Main.rand.Next(5));
+        if (Main.rand.NextDouble() < 0.9)
+            name += RandomSyllable();
+        if (Main.rand.NextDouble() < 0.03)
+            name += suffixes[Main.rand.Next(9)];
+
+        return PostProcessName();
+    }
 
     public override void Load() {
         // primary sprites
@@ -117,28 +206,28 @@ public class SoulWeapon : ModItem {
 
         // secondary sprites
         handleFrames = [
-            GetFrames("SwordHandle_1", 16, 16),
+            GetFrames("SwordHandle_1", 14, 14),
         ];
         yoyoPatternFrames = [
-            GetFrames("SwordHandle_1", 16, 16),
+            GetFrames("SwordHandle_1", 14, 14),
         ];
         tomePatternFrames = [
             GetFrames("TomePattern_1", 28, 32),
         ];
         staffGemFrames = [
-            GetFrames("SwordHandle_1", 16, 16),
+            GetFrames("SwordHandle_1", 14, 14),
         ];
         pistolHandleFrames = [
-            GetFrames("SwordHandle_1", 16, 16),
+            GetFrames("SwordHandle_1", 14, 14),
         ];
         assaultRifleHandleFrames = [
-            GetFrames("SwordHandle_1", 16, 16),
+            GetFrames("SwordHandle_1", 14, 14),
         ];
         rifleHandleFrames = [
-            GetFrames("SwordHandle_1", 16, 16),
+            GetFrames("SwordHandle_1", 14, 14),
         ];
         pickaxeHandleFrames = [
-            GetFrames("SwordHandle_1", 16, 16),
+            GetFrames("SwordHandle_1", 14, 14),
         ];
 
         // tertiary sprites
@@ -193,18 +282,7 @@ public class SoulWeapon : ModItem {
             9 => Main.rand.Next(151, 401), // post ml
             _ => 401 // beyond post ml (unobtainable)
         };
-        name = Main.rand.NextFromList<string>(type switch {
-            SoulWeaponType.Melee or SoulWeaponType.RangedMelee => ["Throngler", "Flashy Sword Name"],
-            SoulWeaponType.Yoyo => ["Yoyo"],
-            SoulWeaponType.Tome => ["Tome"],
-            SoulWeaponType.Scepter or SoulWeaponType.Staff => ["Scepter"],
-            SoulWeaponType.Whip => ["Whip"],
-            SoulWeaponType.Gun => ["Gun"],
-            SoulWeaponType.Bow => ["Bow"],
-            SoulWeaponType.Thrown => ["Thrown"],
-            SoulWeaponType.Pickaxe => ["Pickaxe"],
-            _ => ["???"]
-        });
+        name = GenerateName();
         Init();
     }
 
@@ -349,14 +427,14 @@ public class SoulWeapon : ModItem {
     }
 
     public void ConstructTexture() {
-        Texture2D t;// new(Main.graphics.GraphicsDevice, Item.width, Item.height);
+        Texture2D t;
         switch (type) {
             case SoulWeaponType.Gun:
             case SoulWeaponType.Pickaxe:
             case SoulWeaponType.RangedMelee:
             case SoulWeaponType.Melee:
                 if (frame[1].texture != null)
-                    t = MergeTextures(frame[1].texture.Value, frame[0].texture.Value, new(frame[1].x - 2, frame[1].y - 2));
+                    t = MergeTextures(frame[1].texture.Value, frame[0].texture.Value, new(frame[1].x, frame[1].y));
                 else if (frame[0].texture != null)
                     t = frame[0].texture.Value;
                 else
@@ -364,7 +442,7 @@ public class SoulWeapon : ModItem {
                 break;
             default:
                 if (frame[1].texture != null)
-                    t = MergeTextures(frame[0].texture.Value, frame[1].texture.Value, new(frame[0].x - 2, frame[0].y - 2));
+                    t = MergeTextures(frame[0].texture.Value, frame[1].texture.Value, new(frame[0].x, frame[0].y));
                 else if (frame[0].texture != null)
                     t = frame[0].texture.Value;
                 else
