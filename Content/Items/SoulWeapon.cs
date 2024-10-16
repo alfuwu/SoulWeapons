@@ -92,7 +92,6 @@ public class SoulWeapon : ModItem {
         string[] badClusters = ["wvr", "rvw", "vwr", "vrw", "rwv", "pq", "qp", "xk", "kx", "wx", "xw", "vrz", "rvz", "rzv", "zrv", "zvr", "vzr",
             "ouae", "eai", "aio", "oie", "iua", "iae", "iau"]; // permutations are hardcoded because yes
         string[] badWords = ["fuck", "shit", "dick", "penis", "vagina", "nazi", new string([(char)114, (char)101, (char)116, (char)97, (char)114, (char)100]), new string([(char)110, (char)105, (char)103, (char)103]) /* yes i'm not typing this out */];
-        //string[] commonNames = ["phual", "shien"]; // dont know why, but these names are really common so get rid of them most of the time
         Regex BadConsonantRegex = new(@"([^aeiou])[^aeiou]+\1|[^aeiou]{4,}|q[^u]|[^aeiou]+w[^aeiouh]+|[^aeioutscklprymn]+t[^aeiouhtrl]+|[^aeiou]+r[^aeiou]+|([^aeiou])\2{2,}"); // matches "unenglishy" consonant clusters, which will get replaced with a single consonant instead
         // this regex matches:
         // consonant clusters with a repeating consonant (e.g. zrz)
@@ -177,26 +176,25 @@ public class SoulWeapon : ModItem {
                 ("mya", "ミャ"), ("myu", "ミュ"), ("myo", "ミョ"),
                 ("rya", "リャ"), ("ryu", "リュ"), ("ryo", "リョ"),
                 ("aa", "アー"), ("ii", "イー"), ("uu", "ウー"), ("ee", "エー"), ("oo", "オー"),
-                ("tsu", "ツ"), ("fu", "フ"), ("to", "ト"), ("ku", "ク"),
-                ("th", "テ"), ("ph", "フ"),
+                ("fu", "フ"), ("th", "テ"), ("ph", "フ"),
                 ("sa", "サ"), ("shi", "シ"), ("su", "ス"), ("se", "セ"), ("so", "ソ"),
                 ("za", "ザ"), ("ji", "ジ"), ("zu", "ズ"), ("ze", "ゼ"), ("zo", "ゾ"),
                 ("ka", "カ"), ("ki", "キ"), ("ku", "ク"), ("ke", "ケ"), ("ko", "コ"),
                 ("ga", "ガ"), ("gi", "ギ"), ("gu", "グ"), ("ge", "ゲ"), ("go", "ゴ"),
-                ("ta", "タ"), ("te", "テ"), ("to", "ト"), ("tu", "ツ"), ("ti", "チ"),
+                ("ta", "タ"), ("chi", "チ"), ("tsu", "ツ"), ("te", "テ"), ("to", "ト"),
                 ("ra", "ラ"), ("ri", "リ"), ("ru", "ル"), ("re", "レ"), ("ro", "ロ"),
                 ("na", "ナ"), ("ni", "ニ"), ("nu", "ヌ"), ("ne", "ネ"), ("no", "ノ"),
                 ("ma", "マ"), ("mi", "ミ"), ("mu", "ム"), ("me", "メ"), ("mo", "モ"),
-                ("ha", "ハ"), ("hi", "ヒ"), ("hu", "フ"), ("ho", "ホ"), ("he", "ヘ"),
-                ("ba", "バ"), ("bi", "ビ"), ("bu", "ブ"), ("bo", "ボ"), ("be", "ベ"),
-                ("pa", "パ"), ("pi", "ピ"), ("pu", "プ"), ("po", "ポ"), ("pe", "ペ"),
+                ("ha", "ハ"), ("hi", "ヒ"), ("hu", "フ"), ("he", "ヘ"), ("ho", "ホ"),
+                ("ba", "バ"), ("bi", "ビ"), ("bu", "ブ"), ("be", "ベ"), ("bo", "ボ"),
+                ("pa", "パ"), ("pi", "ピ"), ("pu", "プ"), ("pe", "ペ"), ("po", "ポ"),
                 ("wa", "ワ"), ("wo", "ヲ"),
                 ("a", "ア"), ("i", "イ"), ("u", "ウ"), ("e", "エ"), ("o", "オ"),
                 ("n", "ン"), ("r", "ル"), ("m", "ン")
             ];
             const string specialVowels = "auo";
             string romajiName = "";
-            Regex JFix = new(@"j(i|e)");
+            Regex JFix = new(@"j(e)");
             Regex WFix = new(@"w(i|u)");
             Regex LFix = new(@"l+");
             Regex RemoveInvalidCharacters = new(@"ch([^aeiou])");
