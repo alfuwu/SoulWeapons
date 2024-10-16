@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using ReLogic.Content;
 using SoulWeapons.Content.Projectiles;
@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Terraria;
@@ -53,7 +54,7 @@ public struct Frame(Asset<Texture2D> texture, int x, int y) {
     public static bool operator !=(Frame left, Frame right) => left.texture != right.texture && left.x != right.x && left.y != right.y;
 }
 
-public partial class SoulWeapon : ModItem {
+public class SoulWeapon : ModItem {
     internal static Frame[] meleeFrames, shinyMeleeFrames, yoyoFrames,
         tomeFrames, scepterFrames, staffFrames, whipFrames, pistolFrames, assaultRifleFrames, rifleFrames, bowFrames,
         thrownFrames, pickaxeFrames; // primary textures
@@ -61,14 +62,18 @@ public partial class SoulWeapon : ModItem {
         staffGemFrames, pistolHandleFrames, assaultRifleHandleFrames, rifleHandleFrames, pickaxeHandleFrames; // secondary textures
     internal static Frame[] miscFrames; // tertiary sprites
     internal static Asset<Texture2D>[] materials;
-    
+
+    [field: CloneByReference]
     public UUID SoulWeaponID { get; set; }
     public SoulWeaponType type;
     public SubType subType;
+    [CloneByReference]
     Frame[] frame;
+    [CloneByReference]
     byte[] materialIDs; // 0 is blade/barrel/etc, 1 is handle, 2 is misc textures (sword guard, etc)
     byte stage;
     string name;
+    [CloneByReference]
     public Texture2D texture;
 
     private static Frame GetFrames(string path, int x, int y) => new(ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Frames/{path}"), x, y);
@@ -76,18 +81,31 @@ public partial class SoulWeapon : ModItem {
 
     const string consonants = "bcdfghjklmnprstvwz";
     const string vowels = "aeiou";
-    static readonly string[] consonantClusters = ["st", "th", "ch", "sh", "ph", "tr", "dr", "cl", "br", "cr", "gr", "fr", "bl", "gl"];
-    static readonly string[] commonSyllables = ["ar", "el", "an", "en", "er", "or", "al", "in", "on", "ir", "il", "us", "is"];
-    static readonly string[] prefixes = ["Ex", "Al", "Gr", "Ze", "Ka", "Th", "Ari", "Fi", "Val", "For", "Gal", "Gil"];
-    static readonly string[] suffixes = ["dor", "mir", "mar", "ros", "gon", "lore", "bur", "din", "or"];
-    static readonly string[] badClusters = ["wvr", "rvw", "vwr", "vrw", "rwv", "pq", "qp", "xk", "kx", "wx", "xw", "vrz", "rvz", "rzv", "zrv", "zvr", "vzr",
-        "ouae", "eai", "aio", "oie", "iua", "iae", "iau"]; // permutations are hardcoded because yes
-    static readonly Regex BadConsonantRegex = new(@"([^aeiou])[^aeiou]+\1|[^aeiou]{4,}|(t|w)[^aeiouh]+|([^aeiou])\3{2,}"); // matches "unenglishy" consonant clusters, which will get replaced with a single consonant instead
 
     public static string GenerateName() {
+        // create arrays within method to save on memory usage; they'll be gc'd when no longer in use
+        // increases the processing usage significantly, but this function isn't supposed to be called very often anyways
+        string[] consonantClusters = ["st", "th", "ch", "sh", "ph", "tr", "dr", "cl", "br", "cr", "gr", "fr", "bl", "gl"];
+        string[] commonSyllables = ["ar", "el", "an", "en", "er", "or", "al", "in", "on", "ir", "il", "us", "ur", "is"];
+        string[] prefixes = ["Ex", "Al", "Gr", "Ze", "Ka", "Th", "Ari", "Fi", "Val", "For", "Gal", "Gil"];
+        string[] suffixes = ["dor", "mir", "mar", "ros", "gon", "lore", "bur", "din", "or"];
+        string[] badClusters = ["wvr", "rvw", "vwr", "vrw", "rwv", "pq", "qp", "xk", "kx", "wx", "xw", "vrz", "rvz", "rzv", "zrv", "zvr", "vzr",
+            "ouae", "eai", "aio", "oie", "iua", "iae", "iau"]; // permutations are hardcoded because yes
+        string[] badWords = ["fuck", "shit", "dick", "penis", "vagina", "nazi", new string([(char)114, (char)101, (char)116, (char)97, (char)114, (char)100]), new string([(char)110, (char)105, (char)103, (char)103]) /* yes i'm not typing this out */];
+        //string[] commonNames = ["phual", "shien"]; // dont know why, but these names are really common so get rid of them most of the time
+        Regex BadConsonantRegex = new(@"([^aeiou])[^aeiou]+\1|[^aeiou]{4,}|q[^u]|[^aeiou]+w[^aeiouh]+|[^aeioutscklprymn]+t[^aeiouhtrl]+|[^aeiou]+r[^aeiou]+|([^aeiou])\2{2,}"); // matches "unenglishy" consonant clusters, which will get replaced with a single consonant instead
+        // this regex matches:
+        // consonant clusters with a repeating consonant (e.g. zrz)
+        // consonant clusters with four or more consonants in it (e.g. sdfg)
+        // the consonant q when not followed by a u (e.g. qa)
+        // the consonant w when not followed by a vowel or the consonant h, or when it has consonants behind it (e.g. wt or hw)
+        // the consonant t when not followed by an h, a t, an r, or an l, or when it has a consonant that doesn't mesh with it very well (e.g. tj or bth)
+        // the consonant r when it is preceeded by a consonant and succeeded by a consonant (e.g. frg)
+        // any cluster of three or more of the same consonant (e.g. bbb)
+
         // add a renaming system so players can name their weapons what they want if they dislike the random name (which will probably be quite a common occurence if i'm bein honest here)
+        // ^^^ maybe not, to make the good names actually valuable?
         // also add a config option that makes names be chosen from a static list if people prefer more "handpicked" names
-        // i like the randomnes of this system tho (one of the names i got from it was fororor ffs, that's an amazin name)
         string name = "";
 
         char RandomConsonant() {
@@ -96,13 +114,20 @@ public partial class SoulWeapon : ModItem {
                 c = consonants[Main.rand.Next(18)];
             if (name.Length <= 0 && c == 'p')
                 c = consonants[Main.rand.Next(18)];
+            foreach (string bad in badWords)
+                while ((name + c).Contains(bad))
+                    c = RandomConsonant();
             return c;
         }
 
         char RandomVowel() {
             char v = vowels[Main.rand.Next(5)];
-            if (name.Length > 0 && v == name[^1] || name.Length <= 0 && v == 'u') // u is a bad vowel to start names with
-                v = vowels[Main.rand.Next(5)];
+            for (int i = 0; i < 3; i++)
+                if (name.Length > 0 && (v == name[^1] || name[^1] == 'u' && v == 'e' && name.Length > 3) || name.Length <= 0 && v == 'u') // u is a bad vowel to start names with
+                    v = vowels[Main.rand.Next(5)];
+            foreach (string bad in badWords)
+                while ((name + v).Contains(bad))
+                    v = RandomVowel();
             return v;
         }
 
@@ -139,22 +164,107 @@ public partial class SoulWeapon : ModItem {
             }
         }
 
-        string PostProcessName() { // maybe add a system for rare hyphenated names?
+        void Japaneseify() {
+            Main.NewText("JAPSAN");
+            string[] romajiMap = ["a", "bu", "ku", "do", "e", "fu", "gu", "ha", "i", "ju", "ku", "ru", "mu", "n", "o", "pu", "ku", "ru", "su", "to", "u", "bu", "wa", "ku", "ya", "zu"];
+            (string romaji, string katakana)[] katakanaMap = [
+                ("kya", "キャ"), ("kyu", "キュ"), ("kyo", "キョ"),
+                ("sha", "シャ"), ("shu", "シュ"), ("sho", "ショ"),
+                ("cha", "チャ"), ("chu", "チュ"), ("cho", "チョ"),
+                ("ja", "ジャ"), ("ju", "ジュ"), ("jo", "ジョ"),
+                ("nya", "ニャ"), ("nyu", "ニュ"), ("nyo", "ニョ"),
+                ("hya", "ヒャ"), ("hyu", "ヒュ"), ("hyo", "ヒョ"),
+                ("mya", "ミャ"), ("myu", "ミュ"), ("myo", "ミョ"),
+                ("rya", "リャ"), ("ryu", "リュ"), ("ryo", "リョ"),
+                ("aa", "アー"), ("ii", "イー"), ("uu", "ウー"), ("ee", "エー"), ("oo", "オー"),
+                ("tsu", "ツ"), ("fu", "フ"), ("to", "ト"), ("ku", "ク"),
+                ("th", "テ"), ("ph", "フ"),
+                ("sa", "サ"), ("shi", "シ"), ("su", "ス"), ("se", "セ"), ("so", "ソ"),
+                ("za", "ザ"), ("ji", "ジ"), ("zu", "ズ"), ("ze", "ゼ"), ("zo", "ゾ"),
+                ("ka", "カ"), ("ki", "キ"), ("ku", "ク"), ("ke", "ケ"), ("ko", "コ"),
+                ("ga", "ガ"), ("gi", "ギ"), ("gu", "グ"), ("ge", "ゲ"), ("go", "ゴ"),
+                ("ta", "タ"), ("te", "テ"), ("to", "ト"), ("tu", "ツ"), ("ti", "チ"),
+                ("ra", "ラ"), ("ri", "リ"), ("ru", "ル"), ("re", "レ"), ("ro", "ロ"),
+                ("na", "ナ"), ("ni", "ニ"), ("nu", "ヌ"), ("ne", "ネ"), ("no", "ノ"),
+                ("ma", "マ"), ("mi", "ミ"), ("mu", "ム"), ("me", "メ"), ("mo", "モ"),
+                ("ha", "ハ"), ("hi", "ヒ"), ("hu", "フ"), ("ho", "ホ"), ("he", "ヘ"),
+                ("ba", "バ"), ("bi", "ビ"), ("bu", "ブ"), ("bo", "ボ"), ("be", "ベ"),
+                ("pa", "パ"), ("pi", "ピ"), ("pu", "プ"), ("po", "ポ"), ("pe", "ペ"),
+                ("wa", "ワ"), ("wo", "ヲ"),
+                ("a", "ア"), ("i", "イ"), ("u", "ウ"), ("e", "エ"), ("o", "オ"),
+                ("n", "ン"), ("r", "ル"), ("m", "ン")
+            ];
+            const string specialVowels = "auo";
+            string romajiName = "";
+            Regex JFix = new(@"j(i|e)");
+            Regex WFix = new(@"w(i|u)");
+            Regex LFix = new(@"l+");
+            Regex RemoveInvalidCharacters = new(@"ch([^aeiou])");
+            name = JFix.Replace(WFix.Replace(LFix.Replace(RemoveInvalidCharacters.Replace(name.Replace("kh", "k"), match => "ch" + match.Groups[1]), "l"), match => "r" + match.Groups[1]), match => "ju");
+
+            for (int i = 0; i < name.Length;) {
+                char c = name[i];
+
+                if (i + 2 < name.Length && name[i..(i + 3)] == "tsu" || i + 1 < name.Length && name[i..(i + 2)] == "tu") {
+                    romajiName += "tsu";
+                    i += name[i + 1] == 'u' ? 2 : 3;
+                    continue;
+                }
+
+                if (c - 97 >= 0) {
+                    if (i + 1 < name.Length && (vowels.Contains(name[i + 1]) || (c == 'c' || c == 's') && name[i + 1] == 'h')) {
+                        if ((c == 't' || c == 's') && name[i + 1] == 'i') {
+                            if (i + 2 < name.Length && specialVowels.Contains(name[i + 2]))
+                                romajiName += (c == 't' ? "ch" : "sh") + name[i + 2];
+                            else
+                                romajiName += c == 't' ? "chi" : "shi";
+                            i += 2;
+                        } else {
+                            romajiName += c == 'c' ? 'c' : romajiMap[c - 97][0];
+                        }
+                    } else if (c != 'h' || i < 1 || name[i - 1] != 'c' && name[i - 1] != 's') {
+                        romajiName += romajiMap[c - 97];
+                    }
+                } else {
+                    romajiName += c;
+                }
+                i++;
+            }
+
+            foreach ((string romaji, string katakana) in katakanaMap)
+                romajiName = romajiName.Replace(romaji, katakana); // not really romaji anymore is it?
+            name = romajiName;
+        }
+
+        string PostProcessName() {
             // also possibly add a system to break up most vowel clusters, as they're quite common
+            foreach (string bad in badWords) // prevent bad words (very unrefined filter, but it gets its job done more or less)
+                if (name.Contains(bad))
+                    name = name.Replace(bad, Main.rand.NextDouble() < 0.5 ? RandomVowel().ToString() : RandomConsonant().ToString());
             foreach (string bad in badClusters)
                 if (name.Contains(bad))
                     name = name.Replace(bad, RandomConsonant().ToString());
+            // this regex makes both t & w significantly rarer due to the way it replaces alternatives 4 & 5
+            // maybe find a better way to replace?
             name = BadConsonantRegex.Replace(name, match => RandomConsonant().ToString());
+            if (Main.rand.NextDouble() < 0.01) { // rarely generate a second name
+                string secondName = GenerateName();
+                name += (Main.rand.NextDouble() > 0.2 || secondName.Contains(' ') ? ' ' : '-') + secondName;
+            }
+            if (name.Contains("ae") && Main.rand.NextDouble() < 0.1)
+                name = name.Replace("ae", "æ");
+            if (Main.rand.NextDouble() < 0.5) //6.103515625e-05
+                Japaneseify();
             return name[..1].ToUpper() + name[1..];
         }
 
-        if (Main.rand.NextBool(5))
+        if (Main.rand.NextDouble() < 0.05)
             name += prefixes[Main.rand.Next(12)];
 
-        int j = (Main.rand.NextBool(10) ? Main.rand.Next(2) : 0) + 1;
+        int j = (Main.rand.NextDouble() < 0.1 ? Main.rand.Next(2) : 0) + 1;
         for (int i = 0; i < j; i++)
             GenerateSyllable((byte)Main.rand.Next(5));
-        if (Main.rand.NextDouble() < 0.9)
+        if (Main.rand.NextDouble() < 0.975)
             name += RandomSyllable();
         if (Main.rand.NextDouble() < 0.03)
             name += suffixes[Main.rand.Next(9)];
@@ -246,6 +356,7 @@ public partial class SoulWeapon : ModItem {
 
     public override void SetDefaults() {
         type = SoulWeaponType.Melee;
+        //Item.useStyle = ItemUseStyleID.Swing;
         frame = [new(), new(), new()];
         materialIDs = [0, 0, 0];
         stage = 10;
@@ -364,13 +475,19 @@ public partial class SoulWeapon : ModItem {
                 break;
             case SoulWeaponType.Thrown:
                 Item.DamageType = DamageClass.Ranged;
+                Item.useStyle = ItemUseStyleID.Swing;
+                Item.noMelee = true;
+                Item.noUseGraphic = true;
                 break;
             case SoulWeaponType.Pickaxe:
                 Item.DamageType = DamageClass.Melee;
+                Item.useStyle = ItemUseStyleID.Swing;
                 Item.autoReuse = true;
+                Item.pick = (int)Math.Round((500 * (1 / (1 + Math.Pow(Math.E, -0.3 * (stage - 5)))) - 60) / 10) * 10;
                 break;
             default:
                 Item.DamageType = DamageClass.Default;
+                Item.useStyle = ItemUseStyleID.Swing;
                 Item.damage = 1;
                 break;
         }
@@ -494,6 +611,7 @@ public partial class SoulWeapon : ModItem {
             SoulWeaponType.Gun => subType == SubType.Pistol ? pistolHandleFrames :
                                   subType == SubType.AssaultRifle ? assaultRifleHandleFrames :
                                   subType == SubType.Rifle ? rifleHandleFrames : [],
+            SoulWeaponType.Pickaxe => pickaxeHandleFrames,
             _ => []
         };
     }
@@ -599,6 +717,31 @@ public partial class SoulWeapon : ModItem {
             tag["stage"] = stage;
         tag["name"] = name;
         tag["damage"] = Item.damage;
+        switch (type) {
+            case SoulWeaponType.Melee:
+                break;
+            case SoulWeaponType.RangedMelee:
+                break;
+            case SoulWeaponType.Yoyo:
+                break;
+            case SoulWeaponType.Tome:
+                break;
+            case SoulWeaponType.Scepter:
+                break;
+            case SoulWeaponType.Staff:
+                break;
+            case SoulWeaponType.Whip:
+                break;
+            case SoulWeaponType.Gun:
+                break;
+            case SoulWeaponType.Bow:
+                break;
+            case SoulWeaponType.Thrown:
+                break;
+            case SoulWeaponType.Pickaxe:
+                tag["pick"] = Item.pick;
+                break;
+        }
     }
 
     public override void LoadData(TagCompound tag) {
@@ -625,6 +768,31 @@ public partial class SoulWeapon : ModItem {
         if (tag.TryGet("stage", out byte s))
             stage = s;
         Item.damage = tag.TryGet("damage", out int dmg) ? dmg : 1;
+        switch (type) {
+            case SoulWeaponType.Melee:
+                break;
+            case SoulWeaponType.RangedMelee:
+                break;
+            case SoulWeaponType.Yoyo:
+                break;
+            case SoulWeaponType.Tome:
+                break;
+            case SoulWeaponType.Scepter:
+                break;
+            case SoulWeaponType.Staff:
+                break;
+            case SoulWeaponType.Whip:
+                break;
+            case SoulWeaponType.Gun:
+                break;
+            case SoulWeaponType.Bow:
+                break;
+            case SoulWeaponType.Thrown:
+                break;
+            case SoulWeaponType.Pickaxe:
+                Item.pick = tag.TryGet("pick", out int p) ? p : 10;
+                break;
+        }
         Init();
     }
 
@@ -643,7 +811,7 @@ public partial class SoulWeapon : ModItem {
             player.DropItem(player.GetSource_FromThis("IncompatibleSoulWeapon"), player.position, ref Unsafe.AsRef(Item));
     }
 
-    public override bool CanRightClick() => SoulWeaponID is null && Main.LocalPlayer.GetModPlayer<SoulWieldingPlayer>().SoulWeaponID is null;
+    public override bool CanRightClick() => SoulWeaponID is null && Main.LocalPlayer.GetModPlayer<SoulWieldingPlayer>().SoulWeaponID is null && !Main.LocalPlayer.inventory.Where(i => i.ModItem is SoulWeapon s && s != this && i.favorited).Any(); // prevent player from binding to a soul weapon if they have another soul weapon favorited
 
     public override void RightClick(Player player) {
         SoulWieldingPlayer s = player.GetModPlayer<SoulWieldingPlayer>();

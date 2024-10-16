@@ -1,6 +1,10 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Mono.Cecil.Cil;
 using MonoMod.Cil;
+using MonoMod.RuntimeDetour;
+using ReLogic.Content;
+using ReLogic.Graphics;
 using SoulWeapons.Content.Items;
 using System;
 using System.Collections.Generic;
@@ -8,6 +12,7 @@ using System.ComponentModel;
 using System.Linq;
 using Terraria;
 using Terraria.DataStructures;
+using Terraria.GameContent;
 using Terraria.ModLoader;
 using Terraria.ModLoader.Config;
 using Terraria.ModLoader.IO;
@@ -17,17 +22,38 @@ namespace SoulWeapons;
 
 public class SoulWeapons : Mod {
     public const string Localization = $"Mods.{nameof(SoulWeapons)}";
+    private static Texture2D katakana;
+    private static (char katakana, DynamicSpriteFont.SpriteCharacterData texture)[] katakanaCharacters;
+
+    public Hook h;
 
     public override void Load() {
+        katakana = Assets.Request<Texture2D>("katakana", AssetRequestMode.ImmediateLoad).Value;
+        katakanaCharacters = [
+            ('ア', new(katakana, new Rectangle(0, 0, 12, 15), new Rectangle(), new Vector3()))
+        ];
+
         IL_ItemSlot.DrawItemIcon += DrawItemIcon;
         IL_PlayerDrawLayers.DrawPlayer_27_HeldItem += DrawPlayer_27_HeldItem;
         IL_Player.ItemCheck_ApplyUseStyle_Inner += ItemCheck_ApplyUseStyle_Inner;
+
+        h = new(typeof(DynamicSpriteFont).GetMethod("GetCharacterData"), (Func<DynamicSpriteFont, char, DynamicSpriteFont.SpriteCharacterData> orig, DynamicSpriteFont font, char c) => {
+            if (font == FontAssets.MouseText.Value)
+                foreach ((char katakana, DynamicSpriteFont.SpriteCharacterData texture) in katakanaCharacters)
+                    if (c == katakana) {
+                        return texture;
+                    }
+            return orig(font, c);
+        });
+        h.Apply();
     }
 
     public override void Unload() {
         IL_ItemSlot.DrawItemIcon -= DrawItemIcon;
         IL_PlayerDrawLayers.DrawPlayer_27_HeldItem -= DrawPlayer_27_HeldItem;
         IL_Player.ItemCheck_ApplyUseStyle_Inner -= ItemCheck_ApplyUseStyle_Inner;
+
+        h?.Undo();
     }
 
     private void DrawItemIcon(ILContext il) {
