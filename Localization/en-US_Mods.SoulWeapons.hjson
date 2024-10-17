@@ -59,4 +59,5 @@ Projectiles: {
 	EnergySlash.DisplayName: Energy Slash
 	Whip.DisplayName: Whip
 	Yoyo.DisplayName: Yoyo
+	EnergySword.DisplayName: Energy Sword
 }

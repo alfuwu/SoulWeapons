@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Terraria;
 using Terraria.DataStructures;
+using Terraria.Graphics.Shaders;
 using Terraria.ID;
 using Terraria.Localization;
 using Terraria.ModLoader;
@@ -61,7 +62,7 @@ public class SoulWeapon : ModItem {
     internal static Frame[] handleFrames, yoyoPatternFrames, tomePatternFrames,
         staffGemFrames, pistolHandleFrames, assaultRifleHandleFrames, rifleHandleFrames, pickaxeHandleFrames; // secondary textures
     internal static Frame[] miscFrames; // tertiary sprites
-    internal static Asset<Texture2D>[] materials;
+    internal static (Asset<Texture2D>, Color)[] materials;
 
     [field: CloneByReference]
     public UUID SoulWeaponID { get; set; }
@@ -164,7 +165,6 @@ public class SoulWeapon : ModItem {
         }
 
         void Japaneseify() {
-            Main.NewText("JAPSAN");
             string[] romajiMap = ["a", "bu", "ku", "do", "e", "fu", "gu", "ha", "i", "ju", "ku", "ru", "mu", "n", "o", "pu", "ku", "ru", "su", "to", "u", "bu", "wa", "ku", "ya", "zu"];
             (string romaji, string katakana)[] katakanaMap = [
                 ("kya", "キャ"), ("kyu", "キュ"), ("kyo", "キョ"),
@@ -194,13 +194,19 @@ public class SoulWeapon : ModItem {
             ];
             const string specialVowels = "auo";
             string romajiName = "";
+            Regex YFix = new(@"y(i|e)");
             Regex JFix = new(@"j(e)");
             Regex WFix = new(@"w(i|u)");
             Regex LFix = new(@"l+");
             Regex RemoveInvalidCharacters = new(@"ch([^aeiou])");
-            name = JFix.Replace(WFix.Replace(LFix.Replace(RemoveInvalidCharacters.Replace(name.Replace("kh", "k"), match => "ch" + match.Groups[1]), "l"), match => "r" + match.Groups[1]), match => "ju");
+            name = YFix.Replace(
+                JFix.Replace(
+                WFix.Replace(
+                LFix.Replace(
+                RemoveInvalidCharacters.Replace(name.Replace("kh", "k"),
+                match => "ch" + match.Groups[1]), "l"), match => "r" + match.Groups[1]), match => "ju"), match => "ya");
 
-            for (int i = 0; i < name.Length;) {
+            for (int i = 0; i < name.Length;) { // this sucks
                 char c = name[i];
 
                 if (i + 2 < name.Length && name[i..(i + 3)] == "tsu" || i + 1 < name.Length && name[i..(i + 2)] == "tu") {
@@ -251,7 +257,7 @@ public class SoulWeapon : ModItem {
             }
             if (name.Contains("ae") && Main.rand.NextDouble() < 0.1)
                 name = name.Replace("ae", "æ");
-            if (Main.rand.NextDouble() < 0.5) //6.103515625e-05
+            if (Main.rand.NextDouble() < 6.103515625e-05)
                 Japaneseify();
             return name[..1].ToUpper() + name[1..];
         }
@@ -411,12 +417,14 @@ public class SoulWeapon : ModItem {
                 Item.useAnimation = 20;
                 Item.useTime = 20;
                 if (subType == SubType.Projectile) {
-                    
-                } else if (subType == SubType.FancySlash) {
+                    Item.shoot = ProjectileID.PurificationPowder;
+                    Item.shootSpeed = 10;
+                } else if (subType >= SubType.FancySlash) {
                     Item.shoot = ModContent.ProjectileType<EnergySlash>();
                     Item.noMelee = true;
                     Item.shootsEveryUse = true;
                     Item.knockBack = 4.5f;
+                    Item.shootSpeed = 10;
                 }
                 break;
             case SoulWeaponType.Yoyo:
@@ -831,8 +839,14 @@ public class SoulWeapon : ModItem {
             Projectile.NewProjectile(source, player.MountedCenter, new Vector2(player.direction, 0), pType, damage, knockback, player.whoAmI, player.direction * player.gravDir, player.itemAnimationMax, adjScale);
             NetMessage.SendData(MessageID.PlayerControls, -1, -1, null, player.whoAmI);
         }
+        if (type == SoulWeaponType.RangedMelee && subType != SubType.FancySlash) {
+            Projectile.NewProjectile(source, player.MountedCenter, velocity, ModContent.ProjectileType<EnergySword>(), damage, knockback, player.whoAmI);
+            //EnergySword p = Main.projectile[proj].ModProjectile as EnergySword;
+            //p.texture = texture;
+            //p.Init();
+        }
 
-        return base.Shoot(player, source, position, velocity, pType, damage, knockback);
+        return type != SoulWeaponType.RangedMelee || subType != SubType.Projectile;
     }
 
     public override bool CanPickup(Player player) => CanPlayerWield(player);
@@ -849,6 +863,5 @@ public class SoulWeapon : ModItem {
             .AddIngredient(ItemID.DirtBlock, 10)
             .AddTile(TileID.WorkBenches)
             .Register();*/
-        // uncraftable (workbenches dont like dynamic items)
     }
 }
