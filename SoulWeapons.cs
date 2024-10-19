@@ -45,7 +45,7 @@ public class SoulWeapons : Mod {
             ('キ', new(katakana, new Rectangle(78, 0, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ク', new(katakana, new Rectangle(91, 0, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ケ', new(katakana, new Rectangle(104, 0, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
-            ('コ', new(katakana, new Rectangle(114, 0, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
+            ('コ', new(katakana, new Rectangle(117, 0, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ガ', new(katakana, new Rectangle(133, 0, 15, 14), new Rectangle(0, 0, 16, 14), new Vector3(1, 15, 1))),
             ('ギ', new(katakana, new Rectangle(149, 0, 15, 14), new Rectangle(0, 0, 16, 14), new Vector3(1, 15, 1))),
             ('グ', new(katakana, new Rectangle(165, 0, 15, 14), new Rectangle(0, 0, 16, 14), new Vector3(1, 15, 1))),
@@ -55,7 +55,7 @@ public class SoulWeapons : Mod {
             ('シ', new(katakana, new Rectangle(78, 15, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ス', new(katakana, new Rectangle(91, 15, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('セ', new(katakana, new Rectangle(104, 15, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
-            ('ソ', new(katakana, new Rectangle(114, 15, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
+            ('ソ', new(katakana, new Rectangle(117, 15, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ザ', new(katakana, new Rectangle(133, 15, 15, 14), new Rectangle(0, 0, 16, 14), new Vector3(1, 15, 1))),
             ('ジ', new(katakana, new Rectangle(149, 15, 15, 14), new Rectangle(0, 0, 16, 14), new Vector3(1, 15, 1))),
             ('ズ', new(katakana, new Rectangle(165, 15, 15, 14), new Rectangle(0, 0, 16, 14), new Vector3(1, 15, 1))),
@@ -65,22 +65,22 @@ public class SoulWeapons : Mod {
             ('テ', new(katakana, new Rectangle(78, 30, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ト', new(katakana, new Rectangle(91, 30, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ツ', new(katakana, new Rectangle(104, 30, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
-            ('チ', new(katakana, new Rectangle(114, 30, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
+            ('チ', new(katakana, new Rectangle(117, 30, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ナ', new(katakana, new Rectangle(65, 45, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ニ', new(katakana, new Rectangle(78, 45, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ヌ', new(katakana, new Rectangle(91, 45, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ネ', new(katakana, new Rectangle(104, 45, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
-            ('ノ', new(katakana, new Rectangle(114, 45, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
+            ('ノ', new(katakana, new Rectangle(117, 45, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('マ', new(katakana, new Rectangle(65, 60, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ミ', new(katakana, new Rectangle(78, 60, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ム', new(katakana, new Rectangle(91, 60, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('メ', new(katakana, new Rectangle(104, 60, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
-            ('モ', new(katakana, new Rectangle(114, 60, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
+            ('モ', new(katakana, new Rectangle(117, 60, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ラ', new(katakana, new Rectangle(65, 75, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('リ', new(katakana, new Rectangle(78, 75, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ル', new(katakana, new Rectangle(91, 75, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('レ', new(katakana, new Rectangle(104, 75, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
-            ('ロ', new(katakana, new Rectangle(114, 75, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
+            ('ロ', new(katakana, new Rectangle(117, 75, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ハ', new(katakana, new Rectangle(65, 90, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('ヒ', new(katakana, new Rectangle(78, 90, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
             ('フ', new(katakana, new Rectangle(91, 90, 12, 14), new Rectangle(0, 0, 14, 14), new Vector3(1, 13, 1))),
@@ -195,7 +195,7 @@ public class SoulWeapons : Mod {
             ILLabel skipVanilla3 = il.DefineLabel();
             c.GotoNext(i => i.MatchLdsfld<Item>("staff"));
             c.Emit(OpCodes.Ldloc_0);
-            c.EmitDelegate((Item item) => item.ModItem is SoulWeapon s && (s.type == SoulWeaponType.Scepter || s.type == SoulWeaponType.Staff));
+            c.EmitDelegate((Item item) => item.ModItem is SoulWeapon s && (s.type == WeaponType.Scepter || s.type == WeaponType.Staff));
             c.Emit(OpCodes.Brtrue_S, skipVanilla3);
             c.GotoNext(MoveType.After, i => i.MatchBrfalse(out _));
             c.MarkLabel(skipVanilla3);
@@ -211,7 +211,7 @@ public class SoulWeapons : Mod {
             ILLabel skipVanilla = il.DefineLabel();
             c.GotoNext(i => i.MatchLdsfld<Item>("staff"));
             c.Emit(OpCodes.Ldarg_2);
-            c.EmitDelegate((Item item) => item.ModItem is SoulWeapon s && (s.type == SoulWeaponType.Scepter || s.type == SoulWeaponType.Staff));
+            c.EmitDelegate((Item item) => item.ModItem is SoulWeapon s && (s.type == WeaponType.Scepter || s.type == WeaponType.Staff));
             c.Emit(OpCodes.Brtrue_S, skipVanilla);
             c.GotoNext(MoveType.After, i => i.MatchBrfalse(out _));
             c.MarkLabel(skipVanilla);

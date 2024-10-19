@@ -11,7 +11,6 @@ using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Terraria;
 using Terraria.DataStructures;
-using Terraria.Graphics.Shaders;
 using Terraria.ID;
 using Terraria.Localization;
 using Terraria.ModLoader;
@@ -19,7 +18,7 @@ using Terraria.ModLoader.IO;
 
 namespace SoulWeapons.Content.Items;
 
-public enum SoulWeaponType : byte {
+public enum WeaponType : byte {
     Melee,
     RangedMelee,
     Yoyo,
@@ -43,10 +42,12 @@ public enum SubType : byte {
     Rifle
 }
 
-public struct Frame(Asset<Texture2D> texture, int x, int y) {
+public struct Frame(Asset<Texture2D> texture, byte x, byte y, byte offsetX = 0, byte offsetY = 0) {
     public Asset<Texture2D> texture = texture;
-    public int x = x; // size x of the image
-    public int y = y; // size y of the image
+    public byte x = x; // size x of the image
+    public byte y = y; // size y of the image
+    public byte offsetX = offsetX;
+    public byte offsetY = offsetY;
 
     public override readonly bool Equals([NotNullWhen(true)] object obj) => obj is Frame f && this == f;
     public override readonly int GetHashCode() => base.GetHashCode();
@@ -62,22 +63,37 @@ public class SoulWeapon : ModItem {
     internal static Frame[] handleFrames, yoyoPatternFrames, tomePatternFrames,
         staffGemFrames, pistolHandleFrames, assaultRifleHandleFrames, rifleHandleFrames, pickaxeHandleFrames; // secondary textures
     internal static Frame[] miscFrames; // tertiary sprites
-    internal static (Asset<Texture2D>, Color)[] materials;
+    internal static (Asset<Texture2D> material, Color color)[] materials;
+    internal static (float weight, Action<Item, SoulWeapon, bool> modifier, Predicate<SoulWeapon> apply)[] modifiers;
+
+    delegate void ModifyHit(Player player, NPC npc, ref NPC.HitModifiers hitInfo);
+    delegate void ModifyHitPlayer(Player player, Player other, ref Player.HurtModifiers hitInfo);
+    delegate void AfterHit(Player player, NPC npc, NPC.HitInfo hit, int damageDone);
+    delegate void AfterHitPlayer(Player player, Player other, Player.HurtInfo hitInfo, int damageDone);
+    delegate void ModifyShoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int type, int damage, float knockback);
 
     [field: CloneByReference]
     public UUID SoulWeaponID { get; set; }
-    public SoulWeaponType type;
+    public WeaponType type;
     public SubType subType;
     [CloneByReference]
     Frame[] frame;
     [CloneByReference]
     byte[] materialIDs; // 0 is blade/barrel/etc, 1 is handle, 2 is misc textures (sword guard, etc)
+    byte[] modifierIDs;
+    byte[] weaponStats; // custom weapon stats (shoot count, yoyo length/duration, etc)
+    event ModifyHit OnHit;
+    event ModifyHitPlayer OnHitPlayer;
+    event AfterHit PostHit;
+    event AfterHitPlayer PostHitPlayer;
+    event ModifyShoot OnShoot;
+    short dust;
     byte stage;
     string name;
     [CloneByReference]
     public Texture2D texture;
 
-    private static Frame GetFrames(string path, int x, int y) => new(ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Frames/{path}"), x, y);
+    private static Frame GetFrames(string path, byte x, byte y, byte offsetX = 0, byte offsetY = 0) => new(ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Frames/{path}"), x, y, offsetX, offsetY);
     private static Asset<Texture2D> GetMat(string path) => ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Materials/{path}");
 
     const string consonants = "bcdfghjklmnprstvwz";
@@ -348,6 +364,154 @@ public class SoulWeapon : ModItem {
         miscFrames = [
             new Frame()
         ];
+
+        modifiers = [
+            (0.5f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                if (weapon.stage == 0) {
+                    item.useTime += 10; // slows attack speed by increasing use time
+                    if (weapon.type >= WeaponType.Melee && weapon.type <= WeaponType.Yoyo || weapon.type == WeaponType.Pickaxe)
+                        item.knockBack *= 1.5f; // increase knockback for melee weapons
+
+                    item.scale *= 1.4f;
+                    if (weapon.type == WeaponType.Yoyo) {
+                        // reduce yoyo length and duration
+                        weapon.weaponStats[2] = (byte)Math.Max(weapon.weaponStats[2] - 10, 1); // yoyo length
+                        weapon.weaponStats[3] = (byte)Math.Max(weapon.weaponStats[3] - 10, 1); // yoyo duration
+                    }
+                }
+                item.damage = (int)(item.damage * 1.2);
+                if (weapon.type == WeaponType.Pickaxe)
+                    item.pick = (int)(item.pick * 1.3f);
+            }, weapon => true),
+            (0.4f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                if (weapon.stage == 0)
+                    item.useTime = (int)(item.useTime * 0.7f);
+                item.damage = (int)(item.damage * 0.8);
+                if (weapon.type >= WeaponType.Gun && weapon.type <= WeaponType.Thrown) {
+                    item.shootSpeed += 1;
+                    weapon.weaponStats[3] = (byte)Math.Max(weapon.weaponStats[3] - 5, 0); // ammo consumption
+                }
+            }, weapon => true),
+            (0.3f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                item.damage = (int)(item.damage * 1.1f);
+                item.useTime += 5;
+                weapon.weaponStats[0] |= 0b00000001;
+            }, weapon => true),
+            (0.3f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                if (weapon.type >= WeaponType.Tome && weapon.type <= WeaponType.Thrown && weapon.type != WeaponType.Whip) {
+                    weapon.weaponStats[2] += 1; // adds 1 to piercing count for projectiles
+                    item.damage = (int)(item.damage * weapon.stage == 0 ? 0.9f : 0.95f);
+                    item.shootSpeed += 1;
+                }
+            }, weapon => weapon.type >= WeaponType.Tome && weapon.type <= WeaponType.Thrown && weapon.type != WeaponType.Whip),
+            (0.2f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                item.damage = (int)(item.damage * weapon.stage == 0 ? 1.2f : 1.05f);
+                if (weapon.stage == 0)
+                    item.defense -= 5;
+            }, weapon => true),
+            (0.1f, (item, weapon, dryRun) => { // freezing
+                weapon.OnHit += (Player player, NPC npc, ref NPC.HitModifiers modifiers) =>
+                    npc.AddBuff(BuffID.Frozen, 60);
+                if (dryRun)
+                    return;
+                item.useTime += 3;
+                item.crit += 5;
+            }, weapon => weapon.stage == 0),
+            (0.1f, (item, weapon, dryRun) => { // lightning
+                // implement lighting
+                //weapon.OnHit += (Player player, NPC npc, ref NPC.HitModifiers modifiers) =>
+                //    
+                if (dryRun)
+                    return;
+                item.damage = (int)(item.damage * 0.9f);
+                item.useTime -= 3;
+            }, weapon => weapon.stage == 0),
+            (0.3f, (item, weapon, dryRun) => { // lifesteal
+                weapon.PostHit += (Player player, NPC npc, NPC.HitInfo hitInfo, int damageDone) => {
+                    int lifeStealAmount = (int)(damageDone * 0.02f); // 2% lifesteal
+                    player.Heal(lifeStealAmount);
+                };
+                if (dryRun)
+                    return;
+                item.damage = (int)(item.damage * 0.85f);
+                item.knockBack += 1;
+            }, weapon => weapon.stage == 0),
+            (0.4f, (item, weapon, dryRun) => { // poison dot
+                weapon.OnHit += (Player player, NPC npc, ref NPC.HitModifiers modifiers) =>
+                    npc.AddBuff(BuffID.Poisoned, 180);
+                if (dryRun)
+                    return;
+                item.damage = (int)(item.damage * 0.9f);
+            }, weapon => weapon.stage == 0),
+            (0.4f, (item, weapon, dryRun) => {
+                weapon.OnHit += (Player player, NPC npc, ref NPC.HitModifiers modifiers) =>
+                    npc.AddBuff(BuffID.OnFire, 240); // fire for 4 seconds
+                if (dryRun)
+                    return;
+                item.damage = (int)(item.damage * 0.9f);
+                item.useTime += 1;
+            }, weapon => weapon.stage == 0),
+            (0.3f, (item, weapon, dryRun) => {
+                weapon.OnShoot += (Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int type, int damage, float knockback) => {
+
+                };
+                if (dryRun)
+                    return;
+                item.damage = (int)(item.damage * stage == 0 ? 0.6f : 0.9f);
+            }, weapon => weapon.stage == 0 && weapon.type >= WeaponType.Tome && weapon.type <= WeaponType.Thrown && weapon.type != WeaponType.Whip),
+            (0.3f, (item, weapon, dryRun) => {
+                weapon.OnHit += (Player player, NPC npc, ref NPC.HitModifiers modifiers) =>
+                    npc.AddBuff(BuffID.Bleeding, 180);
+                if (dryRun)
+                    return;
+                item.crit += 5;
+                item.defense -= 3; // reduce holder defense (needs impl)
+            }, weapon => weapon.stage == 0),
+            (0.05f, (item, weapon, dryRun) => { // shoot scream thing
+                if (dryRun)
+                    return;
+                weapon.weaponStats[0] |= 0b01000000;
+                item.knockBack += 2;
+            }, weapon => true),
+            (0.3f, (item, weapon, dryRun) => { // lower enemy defense
+                weapon.OnHit += (Player player, NPC npc, ref NPC.HitModifiers modifiers) =>
+                    modifiers.Defense.Base -= 3;
+                if (dryRun)
+                    return;
+                item.useTime += 2;
+            }, weapon => weapon.stage == 0 && weapon.type >= WeaponType.Tome && weapon.type <= WeaponType.Thrown && weapon.type != WeaponType.Whip),
+            (0.13f, (item, weapon, dryRun) => {
+                weapon.OnHit += (Player player, NPC npc, ref NPC.HitModifiers modifiers) =>
+                    npc.AddBuff(BuffID.Slow, 120);
+                if (dryRun)
+                    return;
+                item.crit -= 2;
+                item.useTime += 4;
+                item.damage = (int)(item.damage * 1.1f);
+            }, weapon => true),
+            (0.1f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                item.useTime = (int)(item.useTime * 1.5f) + 3;
+                item.damage = (int)(item.damage * 1.6f);
+                item.knockBack *= 2;
+            }, weapon => stage == 0),
+            (0.2f, (item, weapon, dryRun) => { // guardian spirit thingy
+                if (dryRun)
+                    return;
+                item.damage = (int)(item.damage * 0.85f);
+            }, weapon => true),
+        ];
     }
 
     public override void Unload() {
@@ -359,11 +523,12 @@ public class SoulWeapon : ModItem {
     }
 
     public override void SetDefaults() {
-        type = SoulWeaponType.Melee;
+        type = WeaponType.Melee;
         //Item.useStyle = ItemUseStyleID.Swing;
         frame = [new(), new(), new()];
         materialIDs = [0, 0, 0];
         stage = 10;
+        dust = 0;
         name = "???";
         Item.width = 40;
         Item.height = 40;
@@ -371,10 +536,10 @@ public class SoulWeapon : ModItem {
 
     public override void OnCreated(ItemCreationContext context) {
         SoulWeaponID = null;
-        type = (SoulWeaponType)Main.rand.Next((int)SoulWeaponType.Count);
+        type = (WeaponType)Main.rand.Next((int)WeaponType.Count);
         int gunType = Main.rand.Next(3);
-        if (type == SoulWeaponType.RangedMelee || type == SoulWeaponType.Gun)
-            subType = (SubType)(gunType + (type == SoulWeaponType.Gun ? 3 : 0));
+        if (type == WeaponType.RangedMelee || type == WeaponType.Gun)
+            subType = (SubType)(gunType + (type == WeaponType.Gun ? 3 : 0));
         Frame[] a = GetPrimaryFrameArray();
         Frame[] b = GetSecondaryFrameArray();
         frame = [
@@ -383,8 +548,9 @@ public class SoulWeapon : ModItem {
             Main.rand.NextFromList(miscFrames)
         ];
         materialIDs = [(byte)Main.rand.Next(256), (byte)Main.rand.Next(256), (byte)Main.rand.Next(256)];
-        stage = 1;
-        Item.damage = stage switch {
+        //float damageCalc = stage == 0 ? 1 : Item.damage / stage switch { 1 => 33f, 2 => 39f, 3 => 45f, 4 => 61f, 5 => 71f, 6 => 83f, 7 => 105f, 8 => 151f, 9 => 401f, _ => 401f };
+        int actualStage = 1; // stage calcs
+        Item.damage = actualStage switch {
             0 => Main.rand.Next(10, 25),
             1 => Main.rand.Next(25, 33),
             2 => Main.rand.Next(33, 39), // early hardmode
@@ -397,6 +563,11 @@ public class SoulWeapon : ModItem {
             9 => Main.rand.Next(151, 401), // post ml
             _ => 401 // beyond post ml (unobtainable)
         };
+        for (byte i = 0; i <= actualStage; i++) {
+            stage = i;
+            foreach (byte modifier in modifierIDs)
+                modifiers[modifier].modifier(Item, this, false);
+        }
         name = GenerateName();
         Init();
     }
@@ -407,11 +578,11 @@ public class SoulWeapon : ModItem {
         Item.UseSound = SoundID.Item1;
         Item.knockBack = 6f;
         switch (type) {
-            case SoulWeaponType.Melee:
+            case WeaponType.Melee:
                 Item.DamageType = DamageClass.Melee;
                 Item.useStyle = ItemUseStyleID.Swing;
                 break;
-            case SoulWeaponType.RangedMelee:
+            case WeaponType.RangedMelee:
                 Item.DamageType = DamageClass.Melee;
                 Item.useStyle = ItemUseStyleID.Swing;
                 Item.useAnimation = 20;
@@ -427,7 +598,7 @@ public class SoulWeapon : ModItem {
                     Item.shootSpeed = 10;
                 }
                 break;
-            case SoulWeaponType.Yoyo:
+            case WeaponType.Yoyo:
                 Item.DamageType = DamageClass.MeleeNoSpeed;
                 Item.useStyle = ItemUseStyleID.Shoot;
                 Item.shoot = ModContent.ProjectileType<Yoyo>();
@@ -438,25 +609,25 @@ public class SoulWeapon : ModItem {
                 Item.noMelee = true;
                 Item.noUseGraphic = true;
                 break;
-            case SoulWeaponType.Tome:
+            case WeaponType.Tome:
                 Item.DamageType = DamageClass.Magic;
                 Item.useStyle = ItemUseStyleID.Shoot;
                 Item.shoot = ProjectileID.PurificationPowder;
                 Item.mana = 10;
                 break;
-            case SoulWeaponType.Scepter:
+            case WeaponType.Scepter:
                 Item.DamageType = DamageClass.Magic;
                 Item.useStyle = ItemUseStyleID.Shoot;
                 Item.shoot = ProjectileID.PurificationPowder;
                 Item.mana = 10;
                 break;
-            case SoulWeaponType.Staff:
+            case WeaponType.Staff:
                 Item.DamageType = DamageClass.Magic;
                 Item.useStyle = ItemUseStyleID.Shoot;
                 Item.shoot = ProjectileID.PurificationPowder;
                 Item.mana = 10;
                 break;
-            case SoulWeaponType.Whip:
+            case WeaponType.Whip:
                 Item.DamageType = DamageClass.SummonMeleeSpeed;
                 Item.useStyle = ItemUseStyleID.Swing;
                 Item.shoot = ModContent.ProjectileType<Whip>();
@@ -467,25 +638,25 @@ public class SoulWeapon : ModItem {
                 Item.noMelee = true;
                 Item.noUseGraphic = true;
                 break;
-            case SoulWeaponType.Gun:
+            case WeaponType.Gun:
                 Item.DamageType = DamageClass.Ranged;
                 Item.useStyle = ItemUseStyleID.Shoot;
                 Item.shoot = ProjectileID.PurificationPowder;
                 Item.useAmmo = AmmoID.Bullet;
                 break;
-            case SoulWeaponType.Bow:
+            case WeaponType.Bow:
                 Item.DamageType = DamageClass.Ranged;
                 Item.useStyle = ItemUseStyleID.Shoot;
                 Item.shoot = ProjectileID.PurificationPowder;
                 Item.useAmmo = AmmoID.Arrow;
                 break;
-            case SoulWeaponType.Thrown:
+            case WeaponType.Thrown:
                 Item.DamageType = DamageClass.Ranged;
                 Item.useStyle = ItemUseStyleID.Swing;
                 Item.noMelee = true;
                 Item.noUseGraphic = true;
                 break;
-            case SoulWeaponType.Pickaxe:
+            case WeaponType.Pickaxe:
                 Item.DamageType = DamageClass.Melee;
                 Item.useStyle = ItemUseStyleID.Swing;
                 Item.autoReuse = true;
@@ -509,6 +680,30 @@ public class SoulWeapon : ModItem {
         Item.rare = stage + 1;
         Item.SetNameOverride(name);
         Item.NetStateChanged();
+    }
+
+    public byte[] ApplyModifiers(Item item) {
+        int modifierCount = Main.rand.Next(2, Math.Min((int)Math.Pow(stage + 1, 0.6), 5) + 1);
+
+        for (int i = 0; i < modifierCount; i++) {
+            // randomly pick a modifier based on weight
+            var possibleModifiers = modifiers.Where(m => m.apply(this)).ToArray();
+            if (possibleModifiers.Length == 0)
+                break;
+
+            float totalWeight = possibleModifiers.Sum(m => m.weight);
+            float roll = (float)Main.rand.NextDouble() * totalWeight;
+            float currentWeight = 0;
+
+            foreach (var modifier in possibleModifiers) {
+                currentWeight += modifier.weight;
+                if (roll <= currentWeight) {
+                    modifier.modifier(item, this, false); // Apply the modifier
+                    break;
+                }
+            }
+        }
+        return [];
     }
 
     public Texture2D MergeTextures(Texture2D texture1, Texture2D texture2, Vector2 offset) {
@@ -552,12 +747,12 @@ public class SoulWeapon : ModItem {
     public void ConstructTexture() {
         Texture2D t;
         switch (type) {
-            case SoulWeaponType.Gun:
-            case SoulWeaponType.Pickaxe:
-            case SoulWeaponType.RangedMelee:
-            case SoulWeaponType.Melee:
+            case WeaponType.Gun:
+            case WeaponType.Pickaxe:
+            case WeaponType.RangedMelee:
+            case WeaponType.Melee:
                 if (frame[1].texture != null)
-                    t = MergeTextures(frame[1].texture.Value, frame[0].texture.Value, new(frame[1].x, frame[1].y));
+                    t = MergeTextures(frame[1].texture.Value, frame[0].texture.Value, new(frame[1].x + frame[0].offsetX, frame[1].y + frame[0].offsetY));
                 else if (frame[0].texture != null)
                     t = frame[0].texture.Value;
                 else
@@ -565,7 +760,7 @@ public class SoulWeapon : ModItem {
                 break;
             default:
                 if (frame[1].texture != null)
-                    t = MergeTextures(frame[0].texture.Value, frame[1].texture.Value, new(frame[0].x, frame[0].y));
+                    t = MergeTextures(frame[0].texture.Value, frame[1].texture.Value, new(frame[0].x + frame[1].offsetX, frame[0].y + frame[1].offsetY));
                 else if (frame[0].texture != null)
                     t = frame[0].texture.Value;
                 else
@@ -574,6 +769,7 @@ public class SoulWeapon : ModItem {
         }
         texture = t;
     }
+    
     public override bool PreDrawInInventory(SpriteBatch spriteBatch, Vector2 position, Rectangle f, Color drawColor, Color itemColor, Vector2 origin, float scale) {
         if (texture == null)
             ConstructTexture();
@@ -592,32 +788,32 @@ public class SoulWeapon : ModItem {
 
     public Frame[] GetPrimaryFrameArray() {
         return type switch {
-            SoulWeaponType.Melee => meleeFrames,
-            SoulWeaponType.RangedMelee => shinyMeleeFrames,
-            SoulWeaponType.Yoyo => yoyoFrames,
-            SoulWeaponType.Tome => tomeFrames,
-            SoulWeaponType.Scepter => scepterFrames,
-            SoulWeaponType.Staff => staffFrames,
-            SoulWeaponType.Whip => whipFrames,
-            SoulWeaponType.Gun => subType == SubType.Pistol ? pistolFrames :
+            WeaponType.Melee => meleeFrames,
+            WeaponType.RangedMelee => shinyMeleeFrames,
+            WeaponType.Yoyo => yoyoFrames,
+            WeaponType.Tome => tomeFrames,
+            WeaponType.Scepter => scepterFrames,
+            WeaponType.Staff => staffFrames,
+            WeaponType.Whip => whipFrames,
+            WeaponType.Gun => subType == SubType.Pistol ? pistolFrames :
                                   subType == SubType.AssaultRifle ? assaultRifleFrames :
                                   subType == SubType.Rifle ? rifleFrames : [],
-            SoulWeaponType.Bow => bowFrames,
-            SoulWeaponType.Thrown => thrownFrames,
-            SoulWeaponType.Pickaxe => pickaxeFrames,
+            WeaponType.Bow => bowFrames,
+            WeaponType.Thrown => thrownFrames,
+            WeaponType.Pickaxe => pickaxeFrames,
             _ => []
         };
     }
 
     public Frame[] GetSecondaryFrameArray() {
         return type switch {
-            SoulWeaponType.Melee or SoulWeaponType.RangedMelee => handleFrames,
-            SoulWeaponType.Tome => tomePatternFrames,
-            SoulWeaponType.Staff => staffGemFrames,
-            SoulWeaponType.Gun => subType == SubType.Pistol ? pistolHandleFrames :
+            WeaponType.Melee or WeaponType.RangedMelee => handleFrames,
+            WeaponType.Tome => tomePatternFrames,
+            WeaponType.Staff => staffGemFrames,
+            WeaponType.Gun => subType == SubType.Pistol ? pistolHandleFrames :
                                   subType == SubType.AssaultRifle ? assaultRifleHandleFrames :
                                   subType == SubType.Rifle ? rifleHandleFrames : [],
-            SoulWeaponType.Pickaxe => pickaxeHandleFrames,
+            WeaponType.Pickaxe => pickaxeHandleFrames,
             _ => []
         };
     }
@@ -625,7 +821,7 @@ public class SoulWeapon : ModItem {
     public override void NetSend(BinaryWriter writer) {
         writer.Write(SoulWeaponID.ToByteArray());
         writer.Write((byte)type);
-        if (type == SoulWeaponType.RangedMelee || type == SoulWeaponType.Gun)
+        if (type == WeaponType.RangedMelee || type == WeaponType.Gun)
             writer.Write((byte)subType);
         for (int i = 0; i < 3 /*frame.Count*/; i++)
             writer.Write(frame[i].texture != null ? i switch {
@@ -638,12 +834,14 @@ public class SoulWeapon : ModItem {
             writer.Write(materialIDs[i]);
         writer.Write(stage);
         writer.Write(name);
+        writer.Write((byte)modifierIDs.Length);
+        writer.Write(modifierIDs);
     }
 
     public override void NetReceive(BinaryReader reader) {
         SoulWeaponID = new(reader.ReadBytes(16));
-        type = (SoulWeaponType)reader.ReadByte();
-        if (type == SoulWeaponType.RangedMelee || type == SoulWeaponType.Gun)
+        type = (WeaponType)reader.ReadByte();
+        if (type == WeaponType.RangedMelee || type == WeaponType.Gun)
             subType = (SubType)reader.ReadByte();
         byte[] frames = reader.ReadBytes(3);
         frame = [frames[0] > 0 ? GetPrimaryFrameArray()[frames[0] - 1] : new Frame(),
@@ -652,6 +850,9 @@ public class SoulWeapon : ModItem {
         materialIDs = reader.ReadBytes(3);
         stage = reader.ReadByte();
         name = reader.ReadString();
+        modifierIDs = reader.ReadBytes(reader.ReadByte());
+        foreach (byte modifier in modifierIDs)
+            modifiers[modifier].modifier(Item, this, true);
     }
 
     public void Reset() {
@@ -707,7 +908,7 @@ public class SoulWeapon : ModItem {
         if (SoulWeaponID is not null)
             tag["id"] = SoulWeaponID.ToByteArray();
         tag["type"] = (byte)type;
-        if (type == SoulWeaponType.RangedMelee && subType != SubType.Projectile || type == SoulWeaponType.Gun && subType != SubType.Pistol)
+        if (type == WeaponType.RangedMelee && subType != SubType.Projectile || type == WeaponType.Gun && subType != SubType.Pistol)
             tag["subType"] = (byte)subType;
         byte[] frames = new byte[frame.Length];
         for (int i = 0; i < frames.Length; i++)
@@ -722,29 +923,30 @@ public class SoulWeapon : ModItem {
         //if (stage > 0)
             tag["stage"] = stage;
         tag["name"] = name;
+        tag["modifiers"] = modifierIDs;
         tag["damage"] = Item.damage;
         switch (type) {
-            case SoulWeaponType.Melee:
+            case WeaponType.Melee:
                 break;
-            case SoulWeaponType.RangedMelee:
+            case WeaponType.RangedMelee:
                 break;
-            case SoulWeaponType.Yoyo:
+            case WeaponType.Yoyo:
                 break;
-            case SoulWeaponType.Tome:
+            case WeaponType.Tome:
                 break;
-            case SoulWeaponType.Scepter:
+            case WeaponType.Scepter:
                 break;
-            case SoulWeaponType.Staff:
+            case WeaponType.Staff:
                 break;
-            case SoulWeaponType.Whip:
+            case WeaponType.Whip:
                 break;
-            case SoulWeaponType.Gun:
+            case WeaponType.Gun:
                 break;
-            case SoulWeaponType.Bow:
+            case WeaponType.Bow:
                 break;
-            case SoulWeaponType.Thrown:
+            case WeaponType.Thrown:
                 break;
-            case SoulWeaponType.Pickaxe:
+            case WeaponType.Pickaxe:
                 tag["pick"] = Item.pick;
                 break;
         }
@@ -755,13 +957,13 @@ public class SoulWeapon : ModItem {
         if (tag.TryGet("id", out byte[] id))
             SoulWeaponID = new UUID(id);
         if (tag.TryGet("type", out byte t))
-            type = (SoulWeaponType)t;
-        if (type == SoulWeaponType.RangedMelee || type == SoulWeaponType.Gun)
+            type = (WeaponType)t;
+        if (type == WeaponType.RangedMelee || type == WeaponType.Gun)
             if (tag.TryGet("subType", out byte st))
                 subType = (SubType)st;
-            else if (type == SoulWeaponType.RangedMelee)
+            else if (type == WeaponType.RangedMelee)
                 subType = SubType.Projectile;
-            else if (type == SoulWeaponType.Gun)
+            else if (type == WeaponType.Gun)
                 subType = SubType.Pistol;
         if (tag.TryGet("frame", out byte[] sid))
             frame = [sid[0] > 0 ? GetPrimaryFrameArray()[sid[0] - 1] : new Frame(),
@@ -773,29 +975,33 @@ public class SoulWeapon : ModItem {
             name = n;
         if (tag.TryGet("stage", out byte s))
             stage = s;
+        if (tag.TryGet("modifiers", out byte[] mo))
+            modifierIDs = mo;
+        foreach (byte modifier in modifierIDs)
+            modifiers[modifier].modifier(Item, this, true);
         Item.damage = tag.TryGet("damage", out int dmg) ? dmg : 1;
         switch (type) {
-            case SoulWeaponType.Melee:
+            case WeaponType.Melee:
                 break;
-            case SoulWeaponType.RangedMelee:
+            case WeaponType.RangedMelee:
                 break;
-            case SoulWeaponType.Yoyo:
+            case WeaponType.Yoyo:
                 break;
-            case SoulWeaponType.Tome:
+            case WeaponType.Tome:
                 break;
-            case SoulWeaponType.Scepter:
+            case WeaponType.Scepter:
                 break;
-            case SoulWeaponType.Staff:
+            case WeaponType.Staff:
                 break;
-            case SoulWeaponType.Whip:
+            case WeaponType.Whip:
                 break;
-            case SoulWeaponType.Gun:
+            case WeaponType.Gun:
                 break;
-            case SoulWeaponType.Bow:
+            case WeaponType.Bow:
                 break;
-            case SoulWeaponType.Thrown:
+            case WeaponType.Thrown:
                 break;
-            case SoulWeaponType.Pickaxe:
+            case WeaponType.Pickaxe:
                 Item.pick = tag.TryGet("pick", out int p) ? p : 10;
                 break;
         }
@@ -827,6 +1033,10 @@ public class SoulWeapon : ModItem {
 
     public override bool ConsumeItem(Player player) => false; // prevents right clicking from deleting the soul weapon
 
+    public override void ModifyHitNPC(Player player, NPC target, ref NPC.HitModifiers modifiers) => OnHit?.Invoke(player, target, ref modifiers);
+
+    public override void OnHitNPC(Player player, NPC target, NPC.HitInfo hit, int damageDone) => PostHit?.Invoke(player, target, hit, damageDone);
+
     public override void ModifyWeaponDamage(Player player, ref StatModifier damage) {
         UUID uuid = player.GetModPlayer<SoulWieldingPlayer>().SoulWeaponID;
         if (uuid is null && SoulWeaponID is null || uuid is not null && SoulWeaponID is null || SoulWeaponID is null && uuid is not null) // weapon is unbound/somehow the player has the item in their inventory despite it belonging to another player
@@ -834,19 +1044,19 @@ public class SoulWeapon : ModItem {
     }
 
     public override bool Shoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int pType, int damage, float knockback) {
-        if (type == SoulWeaponType.RangedMelee && subType >= SubType.FancySlash) {
+        if (type == WeaponType.RangedMelee && subType >= SubType.FancySlash) {
             float adjScale = player.GetAdjustedItemScale(Item);
             Projectile.NewProjectile(source, player.MountedCenter, new Vector2(player.direction, 0), pType, damage, knockback, player.whoAmI, player.direction * player.gravDir, player.itemAnimationMax, adjScale);
             NetMessage.SendData(MessageID.PlayerControls, -1, -1, null, player.whoAmI);
         }
-        if (type == SoulWeaponType.RangedMelee && subType != SubType.FancySlash) {
+        if (type == WeaponType.RangedMelee && subType != SubType.FancySlash) {
             Projectile.NewProjectile(source, player.MountedCenter, velocity, ModContent.ProjectileType<EnergySword>(), damage, knockback, player.whoAmI);
             //EnergySword p = Main.projectile[proj].ModProjectile as EnergySword;
             //p.texture = texture;
             //p.Init();
         }
 
-        return type != SoulWeaponType.RangedMelee || subType != SubType.Projectile;
+        return type != WeaponType.RangedMelee || subType != SubType.Projectile;
     }
 
     public override bool CanPickup(Player player) => CanPlayerWield(player);
