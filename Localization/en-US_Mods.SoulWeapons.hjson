@@ -60,4 +60,5 @@ Projectiles: {
 	Whip.DisplayName: Whip
 	Yoyo.DisplayName: Yoyo
 	EnergySword.DisplayName: Energy Sword
+	Thrown.DisplayName: Thrown
 }

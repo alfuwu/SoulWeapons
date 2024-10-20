@@ -42,12 +42,12 @@ public enum SubType : byte {
     Rifle
 }
 
-public struct Frame(Asset<Texture2D> texture, byte x, byte y, byte offsetX = 0, byte offsetY = 0) {
+public struct Frame(Asset<Texture2D> texture, byte x, byte y, sbyte offsetX = 0, sbyte offsetY = 0) {
     public Asset<Texture2D> texture = texture;
     public byte x = x; // size x of the image
     public byte y = y; // size y of the image
-    public byte offsetX = offsetX;
-    public byte offsetY = offsetY;
+    public sbyte offsetX = offsetX;
+    public sbyte offsetY = offsetY;
 
     public override readonly bool Equals([NotNullWhen(true)] object obj) => obj is Frame f && this == f;
     public override readonly int GetHashCode() => base.GetHashCode();
@@ -93,7 +93,7 @@ public class SoulWeapon : ModItem {
     [CloneByReference]
     public Texture2D texture;
 
-    private static Frame GetFrames(string path, byte x, byte y, byte offsetX = 0, byte offsetY = 0) => new(ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Frames/{path}"), x, y, offsetX, offsetY);
+    private static Frame GetFrames(string path, byte x, byte y, sbyte offsetX = 0, sbyte offsetY = 0) => new(ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Frames/{path}"), x, y, offsetX, offsetY);
     private static Asset<Texture2D> GetMat(string path) => ModContent.Request<Texture2D>($"{nameof(SoulWeapons)}/Content/Materials/{path}");
 
     const string consonants = "bcdfghjklmnprstvwz";
@@ -296,9 +296,15 @@ public class SoulWeapon : ModItem {
         // primary sprites
         meleeFrames = [
             GetFrames("Sword_1", 30, 38),
+            GetFrames("Sword_2", 60, 60, -6, -6),
+            GetFrames("Sword_3", 64, 64, -4, -4),
+            GetFrames("Sword_4", 42, 46, -2, -2),
+            GetFrames("Sword_5", 20, 20, -2, -2),
+            GetFrames("Sword_6", 44, 44, -4, -4),
+            GetFrames("Sword_7", 44, 44, -8, -8),
         ];
         shinyMeleeFrames = [
-            GetFrames("Sword_1", 30, 38),
+            ..meleeFrames
         ];
         yoyoFrames = [
             GetFrames("Yoyo_1", 30, 26),
@@ -337,6 +343,12 @@ public class SoulWeapon : ModItem {
         // secondary sprites
         handleFrames = [
             GetFrames("SwordHandle_1", 14, 14),
+            GetFrames("SwordHandle_2", 14, 14),
+            GetFrames("SwordHandle_3", 14, 14),
+            GetFrames("SwordHandle_4", 14, 14),
+            GetFrames("SwordHandle_5", 14, 14),
+            GetFrames("SwordHandle_6", 20, 20),
+            GetFrames("SwordHandle_7", 14, 14),
         ];
         yoyoPatternFrames = [
             GetFrames("SwordHandle_1", 14, 14),
@@ -348,7 +360,7 @@ public class SoulWeapon : ModItem {
             GetFrames("SwordHandle_1", 14, 14),
         ];
         pistolHandleFrames = [
-            GetFrames("SwordHandle_1", 14, 14),
+            GetFrames("PistolHandle_1", 12, 10),
         ];
         assaultRifleHandleFrames = [
             GetFrames("SwordHandle_1", 14, 14),
@@ -381,7 +393,7 @@ public class SoulWeapon : ModItem {
                         weapon.weaponStats[3] = (byte)Math.Max(weapon.weaponStats[3] - 10, 1); // yoyo duration
                     }
                 }
-                item.damage = (int)(item.damage * 1.2);
+                item.damage = (int)(item.damage * 1.2f);
                 if (weapon.type == WeaponType.Pickaxe)
                     item.pick = (int)(item.pick * 1.3f);
             }, weapon => true),
@@ -390,7 +402,7 @@ public class SoulWeapon : ModItem {
                     return;
                 if (weapon.stage == 0)
                     item.useTime = (int)(item.useTime * 0.7f);
-                item.damage = (int)(item.damage * 0.8);
+                item.damage = (int)(item.damage * 0.8f);
                 if (weapon.type >= WeaponType.Gun && weapon.type <= WeaponType.Thrown) {
                     item.shootSpeed += 1;
                     weapon.weaponStats[3] = (byte)Math.Max(weapon.weaponStats[3] - 5, 0); // ammo consumption
@@ -401,21 +413,19 @@ public class SoulWeapon : ModItem {
                     return;
                 item.damage = (int)(item.damage * 1.1f);
                 item.useTime += 5;
-                weapon.weaponStats[0] |= 0b00000001;
+                weapon.weaponStats[0] |= 0b00000001; // aoe
             }, weapon => true),
             (0.3f, (item, weapon, dryRun) => {
                 if (dryRun)
                     return;
-                if (weapon.type >= WeaponType.Tome && weapon.type <= WeaponType.Thrown && weapon.type != WeaponType.Whip) {
-                    weapon.weaponStats[2] += 1; // adds 1 to piercing count for projectiles
-                    item.damage = (int)(item.damage * weapon.stage == 0 ? 0.9f : 0.95f);
-                    item.shootSpeed += 1;
-                }
+                weapon.weaponStats[2] += 1; // adds 1 to piercing count for projectiles
+                item.damage = (int)(item.damage * (weapon.stage == 0 ? 0.9f : 0.95f));
+                item.shootSpeed += 1;
             }, weapon => weapon.type >= WeaponType.Tome && weapon.type <= WeaponType.Thrown && weapon.type != WeaponType.Whip),
             (0.2f, (item, weapon, dryRun) => {
                 if (dryRun)
                     return;
-                item.damage = (int)(item.damage * weapon.stage == 0 ? 1.2f : 1.05f);
+                item.damage = (int)(item.damage * (weapon.stage == 0 ? 1.2f : 1.05f));
                 if (weapon.stage == 0)
                     item.defense -= 5;
             }, weapon => true),
@@ -467,7 +477,7 @@ public class SoulWeapon : ModItem {
                 };
                 if (dryRun)
                     return;
-                item.damage = (int)(item.damage * stage == 0 ? 0.6f : 0.9f);
+                item.damage = (int)(item.damage * (stage == 0 ? 0.6f : 0.9f));
             }, weapon => weapon.stage == 0 && weapon.type >= WeaponType.Tome && weapon.type <= WeaponType.Thrown && weapon.type != WeaponType.Whip),
             (0.3f, (item, weapon, dryRun) => {
                 weapon.OnHit += (Player player, NPC npc, ref NPC.HitModifiers modifiers) =>
@@ -502,7 +512,7 @@ public class SoulWeapon : ModItem {
             (0.1f, (item, weapon, dryRun) => {
                 if (dryRun)
                     return;
-                item.useTime = (int)(item.useTime * 1.5f) + 3;
+                item.useTime = item.useTime * 2 + 3;
                 item.damage = (int)(item.damage * 1.6f);
                 item.knockBack *= 2;
             }, weapon => stage == 0),
@@ -510,6 +520,41 @@ public class SoulWeapon : ModItem {
                 if (dryRun)
                     return;
                 item.damage = (int)(item.damage * 0.85f);
+            }, weapon => true),
+            (0.2f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                item.knockBack *= 1.2f;
+            }, weapon => true),
+            (0.2f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                item.shootSpeed *= 1.15f;
+            }, weapon => weapon.type >= WeaponType.Yoyo && weapon.type <= WeaponType.Thrown),
+            (0.2f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                item.damage = (int)(item.damage * 1.2f);
+            }, weapon => true),
+            (0.2f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                item.crit += 3;
+            }, weapon => true),
+            (0.1f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                item.knockBack *= 0.6f;
+            }, weapon => true),
+            (0.1f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                item.shootSpeed *= 0.7f;
+            }, weapon => weapon.type >= WeaponType.Yoyo && weapon.type <= WeaponType.Thrown),
+            (0.1f, (item, weapon, dryRun) => {
+                if (dryRun)
+                    return;
+                item.crit -= 1;
             }, weapon => true),
         ];
     }
@@ -526,6 +571,7 @@ public class SoulWeapon : ModItem {
         type = WeaponType.Melee;
         //Item.useStyle = ItemUseStyleID.Swing;
         frame = [new(), new(), new()];
+        weaponStats = new byte[1];
         materialIDs = [0, 0, 0];
         stage = 10;
         dust = 0;
@@ -548,6 +594,7 @@ public class SoulWeapon : ModItem {
             Main.rand.NextFromList(miscFrames)
         ];
         materialIDs = [(byte)Main.rand.Next(256), (byte)Main.rand.Next(256), (byte)Main.rand.Next(256)];
+        modifierIDs = GetModifiers();
         //float damageCalc = stage == 0 ? 1 : Item.damage / stage switch { 1 => 33f, 2 => 39f, 3 => 45f, 4 => 61f, 5 => 71f, 6 => 83f, 7 => 105f, 8 => 151f, 9 => 401f, _ => 401f };
         int actualStage = 1; // stage calcs
         Item.damage = actualStage switch {
@@ -563,10 +610,15 @@ public class SoulWeapon : ModItem {
             9 => Main.rand.Next(151, 401), // post ml
             _ => 401 // beyond post ml (unobtainable)
         };
+        weaponStats = new byte[type switch {
+            WeaponType.Yoyo or WeaponType.Tome or WeaponType.Scepter or WeaponType.Staff or WeaponType.Gun or WeaponType.Bow or WeaponType.Thrown => 4,
+            _ => 1
+        }];
         for (byte i = 0; i <= actualStage; i++) {
             stage = i;
             foreach (byte modifier in modifierIDs)
-                modifiers[modifier].modifier(Item, this, false);
+                if (modifiers[modifier].apply(this))
+                    modifiers[modifier].modifier(Item, this, false);
         }
         name = GenerateName();
         Init();
@@ -613,18 +665,21 @@ public class SoulWeapon : ModItem {
                 Item.DamageType = DamageClass.Magic;
                 Item.useStyle = ItemUseStyleID.Shoot;
                 Item.shoot = ProjectileID.PurificationPowder;
+                Item.shootSpeed = 6f;
                 Item.mana = 10;
                 break;
             case WeaponType.Scepter:
                 Item.DamageType = DamageClass.Magic;
                 Item.useStyle = ItemUseStyleID.Shoot;
                 Item.shoot = ProjectileID.PurificationPowder;
+                Item.shootSpeed = 6f;
                 Item.mana = 10;
                 break;
             case WeaponType.Staff:
                 Item.DamageType = DamageClass.Magic;
                 Item.useStyle = ItemUseStyleID.Shoot;
                 Item.shoot = ProjectileID.PurificationPowder;
+                Item.shootSpeed = 6f;
                 Item.mana = 10;
                 break;
             case WeaponType.Whip:
@@ -642,17 +697,21 @@ public class SoulWeapon : ModItem {
                 Item.DamageType = DamageClass.Ranged;
                 Item.useStyle = ItemUseStyleID.Shoot;
                 Item.shoot = ProjectileID.PurificationPowder;
+                Item.shootSpeed = 14f;
                 Item.useAmmo = AmmoID.Bullet;
                 break;
             case WeaponType.Bow:
                 Item.DamageType = DamageClass.Ranged;
                 Item.useStyle = ItemUseStyleID.Shoot;
                 Item.shoot = ProjectileID.PurificationPowder;
+                Item.shootSpeed = 6f;
                 Item.useAmmo = AmmoID.Arrow;
                 break;
             case WeaponType.Thrown:
                 Item.DamageType = DamageClass.Ranged;
                 Item.useStyle = ItemUseStyleID.Swing;
+                Item.shoot = ModContent.ProjectileType<Thrown>();
+                Item.shootSpeed = 6f;
                 Item.noMelee = true;
                 Item.noUseGraphic = true;
                 break;
@@ -682,12 +741,13 @@ public class SoulWeapon : ModItem {
         Item.NetStateChanged();
     }
 
-    public byte[] ApplyModifiers(Item item) {
+    public byte[] GetModifiers(int stage = 0) {
         int modifierCount = Main.rand.Next(2, Math.Min((int)Math.Pow(stage + 1, 0.6), 5) + 1);
+        byte[] weaponModifiers = new byte[modifierCount];
 
         for (int i = 0; i < modifierCount; i++) {
             // randomly pick a modifier based on weight
-            var possibleModifiers = modifiers.Where(m => m.apply(this)).ToArray();
+            var possibleModifiers = modifiers.Where(m => m.apply(this) && !weaponModifiers.Contains((byte)Array.IndexOf(modifiers, m))).ToArray();
             if (possibleModifiers.Length == 0)
                 break;
 
@@ -695,15 +755,16 @@ public class SoulWeapon : ModItem {
             float roll = (float)Main.rand.NextDouble() * totalWeight;
             float currentWeight = 0;
 
-            foreach (var modifier in possibleModifiers) {
+            for (byte j = 0; j < possibleModifiers.Length; j++) {
+                var modifier = possibleModifiers[j];
                 currentWeight += modifier.weight;
                 if (roll <= currentWeight) {
-                    modifier.modifier(item, this, false); // Apply the modifier
+                    weaponModifiers[i] = j;
                     break;
                 }
             }
         }
-        return [];
+        return weaponModifiers;
     }
 
     public Texture2D MergeTextures(Texture2D texture1, Texture2D texture2, Vector2 offset) {
@@ -836,6 +897,7 @@ public class SoulWeapon : ModItem {
         writer.Write(name);
         writer.Write((byte)modifierIDs.Length);
         writer.Write(modifierIDs);
+        writer.Write(Item.damage);
     }
 
     public override void NetReceive(BinaryReader reader) {
@@ -850,9 +912,11 @@ public class SoulWeapon : ModItem {
         materialIDs = reader.ReadBytes(3);
         stage = reader.ReadByte();
         name = reader.ReadString();
+        bool dryRun = modifierIDs.Length != 0;
         modifierIDs = reader.ReadBytes(reader.ReadByte());
         foreach (byte modifier in modifierIDs)
-            modifiers[modifier].modifier(Item, this, true);
+            modifiers[modifier].modifier(Item, this, dryRun);
+        Item.damage = reader.ReadInt32();
     }
 
     public void Reset() {
@@ -975,10 +1039,11 @@ public class SoulWeapon : ModItem {
             name = n;
         if (tag.TryGet("stage", out byte s))
             stage = s;
-        if (tag.TryGet("modifiers", out byte[] mo))
+        if (tag.TryGet("modifiers", out byte[] mo)) {
             modifierIDs = mo;
-        foreach (byte modifier in modifierIDs)
-            modifiers[modifier].modifier(Item, this, true);
+            foreach (byte modifier in modifierIDs)
+                modifiers[modifier].modifier(Item, this, true);
+        }
         Item.damage = tag.TryGet("damage", out int dmg) ? dmg : 1;
         switch (type) {
             case WeaponType.Melee:
