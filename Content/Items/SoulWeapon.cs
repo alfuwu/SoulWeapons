@@ -1142,8 +1142,6 @@ public class SoulWeapon : ModItem {
     }
 
     public override void UpdateInventory(Player player) {
-        if (player.HeldItem == Item)
-            Mod.Logger.Info(Array.FindIndex(GetPrimaryFrameArray(), f => f == frame[0]));
         if (!CanPlayerWield(player))
             player.DropItem(player.GetSource_FromThis("IncompatibleSoulWeapon"), player.position, ref Unsafe.AsRef(Item));
     }
