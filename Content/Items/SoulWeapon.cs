@@ -78,7 +78,7 @@ public class SoulWeapon : ModItem {
     public WeaponType type;
     public SubType subType;
     [CloneByReference]
-    Frame[] frame;
+    public Frame[] frame;
     [CloneByReference]
     public byte[] materialIDs; // 0 is blade/barrel/etc, 1 is handle, 2 is misc textures (sword guard, etc)
     [CloneByReference]
@@ -276,7 +276,7 @@ public class SoulWeapon : ModItem {
             }
             if (name.Contains("ae") && Main.rand.NextDouble() < 0.1)
                 name = name.Replace("ae", "æ");
-            if (Main.rand.NextDouble() < 6.103515625e-05)
+            if (Main.rand.NextDouble() < 0.000244140625) // 1/4096
                 Japaneseify();
             return name[..1].ToUpper() + name[1..];
         }
@@ -366,7 +366,7 @@ public class SoulWeapon : ModItem {
             GetFrames("SwordHandle_1", 14, 14),
         ];
         pistolHandleFrames = [
-            GetFrames("PistolHandle_1", 12, 10),
+            GetFrames("PistolHandle_1", 8, 10),
         ];
         assaultRifleHandleFrames = [
             GetFrames("SwordHandle_1", 14, 14),
@@ -598,8 +598,8 @@ public class SoulWeapon : ModItem {
         type = WeaponType.Melee;
         //Item.useStyle = ItemUseStyleID.Swing;
         frame = [new(), new(), new()];
-        weaponStats = new byte[1];
-        materialIDs = [0, 0, 0];
+        weaponStats = [];
+        materialIDs = [];
         stage = 10;
         dust = 0;
         name = "???";
@@ -865,22 +865,26 @@ public class SoulWeapon : ModItem {
         texture = t;
     }
 
-    public override bool PreDrawInInventory(SpriteBatch spriteBatch, Vector2 position, Rectangle f, Color drawColor, Color itemColor, Vector2 origin, float scale) {
+    public override bool PreDrawInInventory(SpriteBatch spriteBatch, Vector2 position, Rectangle rect, Color drawColor, Color itemColor, Vector2 origin, float scale) {
         if (texture == null)
             ConstructTexture();
-        spriteBatch.End();
-        spriteBatch.Begin(SpriteSortMode.Immediate, null, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.UIScaleMatrix);
-
-        GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"]
-                .UseImage0(materials[materialIDs[0]].material)
-                .UseImage1(materials[materialIDs[1]].material)
-                .UseImage2(materials[materialIDs[2]].material)
-                .Apply();
-        spriteBatch.Draw(texture, position, new Rectangle(0, 0, Item.width, Item.height), drawColor, 0, origin, scale, SpriteEffects.None, 0);
-        spriteBatch.End();
-        spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.UIScaleMatrix);
         
-        return false;
+        if (materialIDs.Length >= 1) { // hacky solution to immediate rendering; let vanilla render texture if its not a custom texture
+            spriteBatch.End();
+            spriteBatch.Begin(SpriteSortMode.Immediate, null, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.UIScaleMatrix);
+
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"]
+                    .UseImage0(materials[materialIDs[0]].material)
+                    .UseImage1(materials[materialIDs[1]].material)
+                    .UseImage2(materials[materialIDs[2]].material)
+                    .Apply();
+            spriteBatch.Draw(texture, position, rect, drawColor, 0, origin, scale, SpriteEffects.None, 0);
+            spriteBatch.End();
+            spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.UIScaleMatrix);
+            return false;
+        }
+
+        return true;
     }
 
     public override bool PreDrawInWorld(SpriteBatch spriteBatch, Color lightColor, Color alphaColor, ref float rotation, ref float scale, int whoAmI) {
@@ -891,11 +895,12 @@ public class SoulWeapon : ModItem {
         spriteBatch.End();
         spriteBatch.Begin(SpriteSortMode.Immediate, null, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
 
-        GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"]
-                .UseImage0(materials[materialIDs[0]].material)
-                .UseImage1(materials[materialIDs[1]].material)
-                .UseImage2(materials[materialIDs[2]].material)
-                .Apply();
+        if (materialIDs.Length >= 2)
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"]
+                    .UseImage0(materials[materialIDs[0]].material)
+                    .UseImage1(materials[materialIDs[1]].material)
+                    .UseImage2(materials[materialIDs[2]].material)
+                    .Apply();
         spriteBatch.Draw(texture, drawPosition, new Rectangle(0, 0, Item.width, Item.height), lightColor, rotation, drawOrigin, scale, SpriteEffects.None, 0);
         spriteBatch.End();
         spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
@@ -1141,7 +1146,7 @@ public class SoulWeapon : ModItem {
 
     public override void UpdateInventory(Player player) {
         if (!CanPlayerWield(player))
-            player.DropItem(player.GetSource_FromThis("IncompatibleSoulWeapon"), player.position, ref Unsafe.AsRef(Item));
+            player.DropItem(player.GetSource_FromThis("IncompatibleSoulWeapon"), player.MountedCenter + new Vector2(0, texture.Height / 2f), ref Unsafe.AsRef(Item));
     }
 
     public override bool CanRightClick() => SoulWeaponID is null && Main.LocalPlayer.GetModPlayer<SoulWieldingPlayer>().SoulWeaponID is null && !Main.LocalPlayer.inventory.Where(i => i.ModItem is SoulWeapon s && s != this && i.favorited).Any(); // prevent player from binding to a soul weapon if they have another soul weapon favorited

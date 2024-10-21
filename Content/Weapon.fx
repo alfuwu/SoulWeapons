@@ -49,10 +49,10 @@ float4 PixelShaderFunction(float2 coords : TEXCOORD) : COLOR0
     float isGreenPrimary = step(0.001, color.g) * step(abs(color.r - color.b), 0.001);
     float isBluePrimary = step(0.001, color.b) * step(abs(color.r - color.g), 0.001);
 
-    float2 pixelCoords = coords * (uShaderSpecificData.xy / float2(100, 100));
-    float4 mat1 = tex2D(sampler1, pixelCoords) * color.r * 1.4 * isRedPrimary;
-    float4 mat2 = tex2D(sampler2, pixelCoords) * color.g * 1.4 * isGreenPrimary;
-    float4 mat3 = tex2D(sampler3, pixelCoords) * color.b * isBluePrimary;
+    float2 pixelCoords = coords * (uShaderSpecificData / float2(100, 100));
+    float4 mat1 = tex2D(sampler1, pixelCoords) * color.r * 1.2 * isRedPrimary;
+    float4 mat2 = tex2D(sampler2, pixelCoords) * color.g * 1.2 * isGreenPrimary;
+    float4 mat3 = tex2D(sampler1, pixelCoords) * color.b * isBluePrimary;
 	
     float4 mat = mat1 + mat2 + mat3;
 	

@@ -7,11 +7,13 @@ using Terraria.ID;
 using Terraria;
 using Terraria.ModLoader;
 using SoulWeapons.Content.Items;
+using Terraria.Graphics.Shaders;
 
 namespace SoulWeapons.Content.Projectiles;
 
 public class EnergySword : ModProjectile {
     public Texture2D texture;
+    Color color;
 
     public override void SetDefaults() {
         Projectile.width = 10;
@@ -35,6 +37,7 @@ public class EnergySword : ModProjectile {
     public override void OnSpawn(IEntitySource source) {
         if (source is EntitySource_ItemUse itemUse && itemUse.Item.ModItem is SoulWeapon s && s.texture != null) {
             texture = s.texture;
+            color = SoulWeapon.materials[s.materialIDs[0]].color;
             Projectile.scale = s.Item.scale;
             Init();
         }
@@ -58,19 +61,18 @@ public class EnergySword : ModProjectile {
 
     public override bool PreDraw(ref Color lightColor) {
         Vector2 origin = new(texture.Width / 2, texture.Height / 2);
-        //Main.spriteBatch.End();
-        //Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
+        Main.spriteBatch.End();
+        Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
 
-        //GameShaders.Misc[$"{nameof(SoulWeapons)}/EnergySword"].UseShaderSpecificData(new Vector4(texture.Width / 2, texture.Height / 2, 0, 0));
-        //GameShaders.Misc[$"{nameof(SoulWeapons)}/EnergySword"].UseColor(Color.Gold);
-        //GameShaders.Misc[$"{nameof(SoulWeapons)}/EnergySword"].Apply();
+        GameShaders.Misc[$"{nameof(SoulWeapons)}/EnergySword"].UseShaderSpecificData(new Vector4(texture.Width / 2, texture.Height / 2, 0, 0))
+                .UseColor(color)
+                .Apply();
 
         bool flip = Math.Cos(Projectile.rotation - MathHelper.PiOver4) > 0;
         Main.spriteBatch.Draw(texture, Projectile.Center - Main.screenPosition, default, Color.White, flip ? Projectile.rotation : Projectile.rotation + MathHelper.PiOver2, origin, Projectile.scale, flip ? SpriteEffects.None : SpriteEffects.FlipHorizontally, 0);
-        //Main.spriteBatch.Draw(texture, Projectile.Center - Main.screenPosition, default, Color.White, Projectile.rotation, origin, Projectile.scale, SpriteEffects.None, 0);
-
-        //Main.spriteBatch.End();
-        //Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
+        
+        Main.spriteBatch.End();
+        Main.spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
         return false;
     }
 }

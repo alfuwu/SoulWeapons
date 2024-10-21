@@ -6,6 +6,8 @@ using Terraria.GameContent;
 using Terraria.ID;
 using Terraria.ModLoader;
 using Terraria;
+using SoulWeapons.Content.Items;
+using Terraria.DataStructures;
 
 namespace SoulWeapons.Content.Projectiles;
 
@@ -29,6 +31,8 @@ public class EnergySlash : ModProjectile {
         get => Projectile.localAI[0];
         set => Projectile.localAI[0] = value;
     }
+
+    Color color;
 
     public override void SetStaticDefaults() {
         ProjectileID.Sets.AllowsContactDamageFromJellyfish[Type] = true;
@@ -54,6 +58,13 @@ public class EnergySlash : ModProjectile {
         Projectile.noEnchantmentVisuals = true;
     }
 
+    public override void OnSpawn(IEntitySource source) {
+        if (source is EntitySource_ItemUse itemUse && itemUse.Item.ModItem is SoulWeapon s && s.texture != null) {
+            color = SoulWeapon.materials[s.materialIDs[0]].color;
+            Projectile.scale = s.Item.scale;
+        }
+    }
+
     public override void AI() {
         // if (Age == 0f)
         // 	SoundEngine.PlaySound(SoundID.Item60 with { Volume = 0.65f }, Projectile.position);
@@ -76,7 +87,7 @@ public class EnergySlash : ModProjectile {
         Vector2 dustPosition = Projectile.Center + dustRotation.ToRotationVector2() * 84f * Projectile.scale;
         Vector2 dustVelocity = (dustRotation + Direction * MathHelper.PiOver2).ToRotationVector2();
         if (Main.rand.NextFloat() * 2f < Projectile.Opacity) {
-            Color dustColor = Color.Lerp(Color.Gold, Color.White, Main.rand.NextFloat() * 0.3f);
+            Color dustColor = Color.Lerp(color, Color.White, Main.rand.NextFloat() * 0.3f);
             Dust coloredDust = Dust.NewDustPerfect(Projectile.Center + dustRotation.ToRotationVector2() * (Main.rand.NextFloat() * 80f * Projectile.scale + 20f * Projectile.scale), DustID.FireworksRGB, dustVelocity * 1f, 100, dustColor, 0.4f);
             coloredDust.fadeIn = 0.4f + Main.rand.NextFloat() * 0.15f;
             coloredDust.noGravity = true;
@@ -148,9 +159,9 @@ public class EnergySlash : ModProjectile {
         float lightingColor = Lighting.GetColor(Projectile.Center.ToTileCoordinates()).ToVector3().Length() / (float)Math.Sqrt(3.0);
         lightingColor = Utils.Remap(lightingColor, 0.2f, 1f, 0f, 1f);
 
-        Color backDarkColor = new(180, 160, 60);//new(60, 160, 180); // Original Excalibur color: Color(180, 160, 60)
-        Color middleMediumColor = new(255, 255, 80);//new(80, 255, 255); // Original Excalibur color: Color(255, 255, 80)
-        Color frontLightColor = new(255, 240, 150);//new(150, 240, 255); // Original Excalibur color: Color(255, 240, 150)
+        Color backDarkColor = Color.Lerp(color * 0.5f, Color.White, 0.2352941176f); // 60 / 255
+        Color middleMediumColor = Color.Lerp(color, Color.White, 0.3137254902f); // 80 / 255
+        Color frontLightColor = Color.Lerp(color, Color.White, 0.5882352941f); // 150 / 255
 
         Color whiteTimesLerpTime = Color.White * lerpTime * 0.5f;
         whiteTimesLerpTime.A = (byte)(whiteTimesLerpTime.A * (1f - lightingColor));

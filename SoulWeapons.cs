@@ -259,13 +259,13 @@ public class SoulWeapons : Mod {
     }
 
     private void ApplySoulWeaponShader(ref PlayerDrawSet drawinfo, ref DrawData cdd) {
-        if (cdd.shader == WeaponShader && drawinfo.heldItem.ModItem is SoulWeapon soul)
+        if (cdd.shader == WeaponShader && drawinfo.heldItem.ModItem is SoulWeapon soul && soul.materialIDs.Length >= 1)
             GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"]
-                .UseImage0(SoulWeapon.materials[soul.materialIDs[0]].material)
-                .UseImage1(SoulWeapon.materials[soul.materialIDs[1]].material)
-                .UseImage2(SoulWeapon.materials[soul.materialIDs[2]].material)
-                .UseShaderSpecificData(new(soul.texture.Width, soul.texture.Height, 0, 0))
-                .Apply(cdd);
+                    .UseImage0(SoulWeapon.materials[soul.materialIDs[0]].material)
+                    .UseImage1(SoulWeapon.materials[soul.materialIDs[1]].material)
+                    .UseImage2(SoulWeapon.materials[soul.materialIDs[2]].material)
+                    .UseShaderSpecificData(new(soul.texture.Width, soul.texture.Height, 0, 0))
+                    .Apply(cdd);
     }
 
     private void ItemCheck_ApplyUseStyle_Inner(ILContext il) {
