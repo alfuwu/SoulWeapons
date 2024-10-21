@@ -2,13 +2,10 @@
 using Microsoft.Xna.Framework;
 using System;
 using System.IO;
-using Terraria.Audio;
 using Terraria.DataStructures;
-using Terraria.GameContent;
 using Terraria.ID;
 using Terraria;
 using Terraria.ModLoader;
-using Terraria.Graphics.Shaders;
 using SoulWeapons.Content.Items;
 
 namespace SoulWeapons.Content.Projectiles;
@@ -38,6 +35,7 @@ public class EnergySword : ModProjectile {
     public override void OnSpawn(IEntitySource source) {
         if (source is EntitySource_ItemUse itemUse && itemUse.Item.ModItem is SoulWeapon s && s.texture != null) {
             texture = s.texture;
+            Projectile.scale = s.Item.scale;
             Init();
         }
     }

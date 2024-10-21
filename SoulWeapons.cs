@@ -14,6 +14,7 @@ using Terraria;
 using Terraria.DataStructures;
 using Terraria.GameContent;
 using Terraria.Graphics.Shaders;
+using Terraria.ID;
 using Terraria.ModLoader;
 using Terraria.ModLoader.Config;
 using Terraria.ModLoader.IO;
@@ -22,6 +23,8 @@ using Terraria.UI;
 namespace SoulWeapons;
 
 public class SoulWeapons : Mod {
+    private const int WeaponShader = -1690933014; // should be unique enough
+
     public const string Localization = $"Mods.{nameof(SoulWeapons)}";
     private static Texture2D katakana;
     private static (char katakana, DynamicSpriteFont.SpriteCharacterData texture)[] katakanaCharacters;
@@ -30,8 +33,8 @@ public class SoulWeapons : Mod {
 
     public override void Load() {
         if (!Main.dedServ) {
-            GameShaders.Misc[$"{nameof(SoulWeapons)}/EnergySword"] = new(Assets.Request<Effect>("Content/EnergySword"), "ScreenPass");
             GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"] = new(Assets.Request<Effect>("Content/Weapon"), "ScreenPass");
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/EnergySword"] = new(Assets.Request<Effect>("Content/EnergySword"), "ScreenPass");
         }
 
         katakana = Assets.Request<Texture2D>("katakana", AssetRequestMode.ImmediateLoad).Value;
@@ -110,7 +113,12 @@ public class SoulWeapons : Mod {
 
         IL_ItemSlot.DrawItemIcon += DrawItemIcon;
         IL_PlayerDrawLayers.DrawPlayer_27_HeldItem += DrawPlayer_27_HeldItem;
+        IL_PlayerDrawLayers.DrawPlayer_RenderAllLayers += DrawPlayer_RenderAllLayers;
+        IL_PlayerDrawLayers.DrawPlayer_RenderAllLayersSlow += DrawPlayer_RenderAllLayersSlow;
         IL_Player.ItemCheck_ApplyUseStyle_Inner += ItemCheck_ApplyUseStyle_Inner;
+
+        On_PlayerDrawLayers.DrawPlayer_27_HeldItem += OnDrawPlayer_27_HeldItem;
+        On_PlayerDrawHelper.SetShaderForData += OnSetShaderForData;
 
         h = new(typeof(DynamicSpriteFont).GetMethod("GetCharacterData"), (Func<DynamicSpriteFont, char, DynamicSpriteFont.SpriteCharacterData> orig, DynamicSpriteFont font, char c) => {
             if (font == FontAssets.MouseText.Value)
@@ -125,12 +133,31 @@ public class SoulWeapons : Mod {
     public override void Unload() {
         IL_ItemSlot.DrawItemIcon -= DrawItemIcon;
         IL_PlayerDrawLayers.DrawPlayer_27_HeldItem -= DrawPlayer_27_HeldItem;
+        IL_PlayerDrawLayers.DrawPlayer_RenderAllLayers -= DrawPlayer_RenderAllLayers;
+        IL_PlayerDrawLayers.DrawPlayer_RenderAllLayersSlow -= DrawPlayer_RenderAllLayersSlow;
         IL_Player.ItemCheck_ApplyUseStyle_Inner -= ItemCheck_ApplyUseStyle_Inner;
+
+        On_PlayerDrawLayers.DrawPlayer_27_HeldItem -= OnDrawPlayer_27_HeldItem;
+        On_PlayerDrawHelper.SetShaderForData -= OnSetShaderForData;
 
         h?.Undo();
     }
 
-    private void DrawItemIcon(ILContext il) {
+    private void OnDrawPlayer_27_HeldItem(On_PlayerDrawLayers.orig_DrawPlayer_27_HeldItem orig, ref PlayerDrawSet drawinfo) {
+        orig(ref drawinfo);
+        if (!(drawinfo.drawPlayer.JustDroppedAnItem || drawinfo.shadow != 0f || drawinfo.drawPlayer.frozen || !(drawinfo.drawPlayer.itemAnimation > 0 && drawinfo.heldItem.useStyle != ItemUseStyleID.None || drawinfo.heldItem.holdStyle != 0 && !drawinfo.drawPlayer.pulley && drawinfo.drawPlayer.CanVisuallyHoldItem(drawinfo.heldItem)) || drawinfo.drawPlayer.dead || drawinfo.heldItem.noUseGraphic || drawinfo.drawPlayer.wet && drawinfo.heldItem.noWet || drawinfo.drawPlayer.happyFunTorchTime && drawinfo.drawPlayer.inventory[drawinfo.drawPlayer.selectedItem].createTile == TileID.Torches && drawinfo.drawPlayer.itemAnimation == 0) && drawinfo.heldItem.ModItem is SoulWeapon) {
+            DrawData data = drawinfo.DrawDataCache[^1];
+            data.shader = WeaponShader;
+            drawinfo.DrawDataCache[^1] = data;
+        }
+    }
+
+    private void OnSetShaderForData(On_PlayerDrawHelper.orig_SetShaderForData orig, Player player, int cHead, ref DrawData cdd) {
+        if (cdd.shader != WeaponShader) // we handle shaders ourselves
+            orig(player, cHead, ref cdd);
+    }
+
+    private void DrawItemIcon(ILContext il) { // adjusts the item size to match the soul weapon's actual frame size
         try {
             ILCursor c = new(il);
             c.GotoNext(i => i.MatchLdsfld("Terraria.GameContent.TextureAssets", "Item"));
@@ -203,6 +230,41 @@ public class SoulWeapons : Mod {
             MonoModHooks.DumpIL(this, il);
             throw new ILPatchFailureException(this, il, e);
         }
+    }
+
+    private void DrawPlayer_RenderAllLayers(ILContext il) { // apply soul weapon shader to swung items
+        try {
+            ILCursor c = new(il);
+            c.GotoNext(MoveType.After, i => i.MatchCall<PlayerDrawHelper>("SetShaderForData"));
+            c.Emit(OpCodes.Ldarg_0);
+            c.Emit(OpCodes.Ldloca_S, (byte)1);
+            c.EmitDelegate(ApplySoulWeaponShader);
+        } catch (Exception e) {
+            MonoModHooks.DumpIL(this, il);
+            throw new ILPatchFailureException(this, il, e);
+        }
+    }
+
+    private void DrawPlayer_RenderAllLayersSlow(ILContext il) {
+        try {
+            ILCursor c = new(il);
+            c.GotoNext(MoveType.After, i => i.MatchCall<PlayerDrawHelper>("SetShaderForData"));
+            c.Emit(OpCodes.Ldarg_0);
+            c.Emit(OpCodes.Ldloca_S, (byte)6);
+            c.EmitDelegate(ApplySoulWeaponShader);
+        } catch (Exception e) {
+            MonoModHooks.DumpIL(this, il);
+            throw new ILPatchFailureException(this, il, e);
+        }
+    }
+
+    private void ApplySoulWeaponShader(ref PlayerDrawSet drawinfo, ref DrawData cdd) {
+        if (cdd.shader == WeaponShader && drawinfo.heldItem.ModItem is SoulWeapon soul)
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"]
+                .UseImage0(SoulWeapon.materials[soul.materialIDs[0]].material)
+                .UseImage1(SoulWeapon.materials[soul.materialIDs[1]].material)
+                .UseImage2(SoulWeapon.materials[soul.materialIDs[2]].material)
+                .Apply(cdd);
     }
 
     private void ItemCheck_ApplyUseStyle_Inner(ILContext il) {
@@ -293,5 +355,12 @@ public class SaveSoulWeapons : ModSystem {
                 }
             }
         }
+    }
+}
+
+public static class ArmorShaderDataExtensions {
+    public static ArmorShaderData UseImage(this ArmorShaderData data, Asset<Texture2D> asset, int idx) {
+        Main.graphics.GraphicsDevice.Textures[idx + 1] = asset.Value;
+        return data;
     }
 }
