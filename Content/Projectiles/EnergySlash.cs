@@ -32,7 +32,7 @@ public class EnergySlash : ModProjectile {
         set => Projectile.localAI[0] = value;
     }
 
-    Color color;
+    Func<Color> color;
 
     public override void SetStaticDefaults() {
         ProjectileID.Sets.AllowsContactDamageFromJellyfish[Type] = true;
@@ -87,7 +87,7 @@ public class EnergySlash : ModProjectile {
         Vector2 dustPosition = Projectile.Center + dustRotation.ToRotationVector2() * 84f * Projectile.scale;
         Vector2 dustVelocity = (dustRotation + Direction * MathHelper.PiOver2).ToRotationVector2();
         if (Main.rand.NextFloat() * 2f < Projectile.Opacity) {
-            Color dustColor = Color.Lerp(color, Color.White, Main.rand.NextFloat() * 0.3f);
+            Color dustColor = Color.Lerp(color(), Color.White, Main.rand.NextFloat() * 0.3f);
             Dust coloredDust = Dust.NewDustPerfect(Projectile.Center + dustRotation.ToRotationVector2() * (Main.rand.NextFloat() * 80f * Projectile.scale + 20f * Projectile.scale), DustID.FireworksRGB, dustVelocity * 1f, 100, dustColor, 0.4f);
             coloredDust.fadeIn = 0.4f + Main.rand.NextFloat() * 0.15f;
             coloredDust.noGravity = true;
@@ -159,9 +159,10 @@ public class EnergySlash : ModProjectile {
         float lightingColor = Lighting.GetColor(Projectile.Center.ToTileCoordinates()).ToVector3().Length() / (float)Math.Sqrt(3.0);
         lightingColor = Utils.Remap(lightingColor, 0.2f, 1f, 0f, 1f);
 
-        Color backDarkColor = Color.Lerp(color * 0.5f, Color.White, 0.2352941176f); // 60 / 255
-        Color middleMediumColor = Color.Lerp(color, Color.White, 0.3137254902f); // 80 / 255
-        Color frontLightColor = Color.Lerp(color, Color.White, 0.5882352941f); // 150 / 255
+        Color col = color();
+        Color backDarkColor = Color.Lerp(col * 0.5f, Color.White, 0.2352941176f); // 60 / 255
+        Color middleMediumColor = Color.Lerp(col, Color.White, 0.3137254902f); // 80 / 255
+        Color frontLightColor = Color.Lerp(col, Color.White, 0.5882352941f); // 150 / 255
 
         Color whiteTimesLerpTime = Color.White * lerpTime * 0.5f;
         whiteTimesLerpTime.A = (byte)(whiteTimesLerpTime.A * (1f - lightingColor));

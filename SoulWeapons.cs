@@ -146,9 +146,10 @@ public class SoulWeapons : Mod {
     private void OnDrawPlayer_27_HeldItem(On_PlayerDrawLayers.orig_DrawPlayer_27_HeldItem orig, ref PlayerDrawSet drawinfo) {
         orig(ref drawinfo);
         if (!(drawinfo.drawPlayer.JustDroppedAnItem || drawinfo.shadow != 0f || drawinfo.drawPlayer.frozen || !(drawinfo.drawPlayer.itemAnimation > 0 && drawinfo.heldItem.useStyle != ItemUseStyleID.None || drawinfo.heldItem.holdStyle != 0 && !drawinfo.drawPlayer.pulley && drawinfo.drawPlayer.CanVisuallyHoldItem(drawinfo.heldItem)) || drawinfo.drawPlayer.dead || drawinfo.heldItem.noUseGraphic || drawinfo.drawPlayer.wet && drawinfo.heldItem.noWet || drawinfo.drawPlayer.happyFunTorchTime && drawinfo.drawPlayer.inventory[drawinfo.drawPlayer.selectedItem].createTile == TileID.Torches && drawinfo.drawPlayer.itemAnimation == 0) && drawinfo.heldItem.ModItem is SoulWeapon) {
-            DrawData data = drawinfo.DrawDataCache[^1];
+            int pos = drawinfo.heldItem.glowMask == -1 ? 1 : 2;
+            DrawData data = drawinfo.DrawDataCache[^pos];
             data.shader = WeaponShader;
-            drawinfo.DrawDataCache[^1] = data;
+            drawinfo.DrawDataCache[^pos] = data;
         }
     }
 

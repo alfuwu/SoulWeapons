@@ -13,7 +13,7 @@ namespace SoulWeapons.Content.Projectiles;
 
 public class EnergySword : ModProjectile {
     public Texture2D texture;
-    Color color;
+    Func<Color> color;
 
     public override void SetDefaults() {
         Projectile.width = 10;
@@ -64,8 +64,9 @@ public class EnergySword : ModProjectile {
         Main.spriteBatch.End();
         Main.spriteBatch.Begin(SpriteSortMode.Immediate, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
 
-        GameShaders.Misc[$"{nameof(SoulWeapons)}/EnergySword"].UseShaderSpecificData(new Vector4(texture.Width / 2, texture.Height / 2, 0, 0))
-                .UseColor(color)
+        GameShaders.Misc[$"{nameof(SoulWeapons)}/EnergySword"]
+                .UseShaderSpecificData(new Vector4(origin, 0, 0))
+                .UseColor(color())
                 .Apply();
 
         bool flip = Math.Cos(Projectile.rotation - MathHelper.PiOver4) > 0;

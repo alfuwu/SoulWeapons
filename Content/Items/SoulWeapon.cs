@@ -64,7 +64,7 @@ public class SoulWeapon : ModItem {
     internal static Frame[] handleFrames, yoyoPatternFrames, tomePatternFrames,
         staffGemFrames, pistolHandleFrames, assaultRifleHandleFrames, rifleHandleFrames, pickaxeHandleFrames; // secondary textures
     internal static Frame[] miscFrames; // tertiary sprites
-    internal static (Asset<Texture2D> material, Color color)[] materials;
+    internal static (Asset<Texture2D> material, Func<Color> color)[] materials;
     internal static (float weight, Action<Item, SoulWeapon, bool> modifier, Predicate<SoulWeapon> apply)[] modifiers;
 
     delegate void ModifyHit(Player player, NPC npc, ref NPC.HitModifiers hitInfo);
@@ -384,8 +384,9 @@ public class SoulWeapon : ModItem {
         ];
 
         materials = [
-            (GetMat("0"), Color.Pink),
-            (GetMat("1"), Color.DarkSlateGray)
+            (GetMat("0"), () => Color.Pink),
+            (GetMat("1"), () => Color.DarkSlateGray),
+            (GetMat("2"), () => new Color(Main.DiscoR, Main.DiscoG, Main.DiscoB))
         ];
 
         modifiers = [
@@ -877,6 +878,7 @@ public class SoulWeapon : ModItem {
                     .UseImage0(materials[materialIDs[0]].material)
                     .UseImage1(materials[materialIDs[1]].material)
                     .UseImage2(materials[materialIDs[2]].material)
+                    .UseShaderSpecificData(new(texture.Width, texture.Height, 0, 0))
                     .Apply();
             spriteBatch.Draw(texture, position, rect, drawColor, 0, origin, scale, SpriteEffects.None, 0);
             spriteBatch.End();
@@ -900,6 +902,7 @@ public class SoulWeapon : ModItem {
                     .UseImage0(materials[materialIDs[0]].material)
                     .UseImage1(materials[materialIDs[1]].material)
                     .UseImage2(materials[materialIDs[2]].material)
+                    .UseShaderSpecificData(new(texture.Width, texture.Height, 0, 0))
                     .Apply();
         spriteBatch.Draw(texture, drawPosition, new Rectangle(0, 0, Item.width, Item.height), lightColor, rotation, drawOrigin, scale, SpriteEffects.None, 0);
         spriteBatch.End();
