@@ -384,10 +384,9 @@ public class SoulWeapon : ModItem {
         ];
 
         materials = [
-
+            (GetMat("0"), Color.Pink),
+            (GetMat("1"), Color.DarkSlateGray)
         ];
-        materials = new (Asset<Texture2D>, Color)[255];
-        materials[0] = (GetMat("0"), Color.Pink);
 
         modifiers = [
             (0.5f, (item, weapon, dryRun) => {
@@ -621,7 +620,7 @@ public class SoulWeapon : ModItem {
             b.Length > 0 ? Main.rand.NextFromList(b) : new Frame(),
             Main.rand.NextFromList(miscFrames)
         ];
-        materialIDs = [0, 0, 0];// [(byte)Main.rand.Next(256), (byte)Main.rand.Next(256), (byte)Main.rand.Next(256)];
+        materialIDs = [(byte)Main.rand.Next(materials.Length), (byte)Main.rand.Next(materials.Length), (byte)Main.rand.Next(materials.Length)];
         modifierIDs = GetModifiers();
         //float damageCalc = stage == 0 ? 1 : Item.damage / stage switch { 1 => 33f, 2 => 39f, 3 => 45f, 4 => 61f, 5 => 71f, 6 => 83f, 7 => 105f, 8 => 151f, 9 => 401f, _ => 401f };
         int actualStage = 1; // stage calcs
@@ -1092,7 +1091,6 @@ public class SoulWeapon : ModItem {
                 sid[2] > 0 ? miscFrames[sid[2] - 1] : new Frame()];
         if (tag.TryGet("materials", out byte[] m))
             materialIDs = m;
-        materialIDs = [0, 0, 0];
         if (tag.TryGet("name", out string n))
             name = n;
         if (tag.TryGet("stage", out byte s))

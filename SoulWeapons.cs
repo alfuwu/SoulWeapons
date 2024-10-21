@@ -264,6 +264,7 @@ public class SoulWeapons : Mod {
                 .UseImage0(SoulWeapon.materials[soul.materialIDs[0]].material)
                 .UseImage1(SoulWeapon.materials[soul.materialIDs[1]].material)
                 .UseImage2(SoulWeapon.materials[soul.materialIDs[2]].material)
+                .UseShaderSpecificData(new(soul.texture.Width, soul.texture.Height, 0, 0))
                 .Apply(cdd);
     }
 
