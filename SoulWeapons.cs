@@ -260,13 +260,17 @@ public class SoulWeapons : Mod {
     }
 
     private void ApplySoulWeaponShader(ref PlayerDrawSet drawinfo, ref DrawData cdd) {
-        if (cdd.shader == WeaponShader && drawinfo.heldItem.ModItem is SoulWeapon soul && soul.materialIDs.Length >= 1)
+        if (cdd.shader == WeaponShader && drawinfo.heldItem.ModItem is SoulWeapon soul && soul.materialIDs.Length >= 1) {
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"].Shader.Parameters["material1"].SetValue(SoulWeapon.materials[soul.materialIDs[0]].material.Value);
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"].Shader.Parameters["material2"].SetValue(SoulWeapon.materials[soul.materialIDs[1]].material.Value);
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"].Shader.Parameters["material3"].SetValue(SoulWeapon.materials[soul.materialIDs[2]].material.Value);
             GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"]
-                    .UseImage0(SoulWeapon.materials[soul.materialIDs[0]].material)
-                    .UseImage1(SoulWeapon.materials[soul.materialIDs[1]].material)
-                    .UseImage2(SoulWeapon.materials[soul.materialIDs[2]].material)
+                    //.UseImage0(SoulWeapon.materials[soul.materialIDs[0]].material)
+                    //.UseImage1(SoulWeapon.materials[soul.materialIDs[1]].material)
+                    //.UseImage2(SoulWeapon.materials[soul.materialIDs[2]].material)
                     .UseShaderSpecificData(new(soul.texture.Width, soul.texture.Height, 0, 0))
                     .Apply(cdd);
+        }
     }
 
     private void ItemCheck_ApplyUseStyle_Inner(ILContext il) {
@@ -357,12 +361,5 @@ public class SaveSoulWeapons : ModSystem {
                 }
             }
         }
-    }
-}
-
-public static class ArmorShaderDataExtensions {
-    public static ArmorShaderData UseImage(this ArmorShaderData data, Asset<Texture2D> asset, int idx) {
-        Main.graphics.GraphicsDevice.Textures[idx + 1] = asset.Value;
-        return data;
     }
 }

@@ -29,17 +29,11 @@ public class EnergySword : ModProjectile {
         AIType = ProjectileID.LightBeam;
     }
 
-    public void Init() {
-        //Projectile.width = texture.Width;
-        //Projectile.height = texture.Height;
-    }
-
     public override void OnSpawn(IEntitySource source) {
         if (source is EntitySource_ItemUse itemUse && itemUse.Item.ModItem is SoulWeapon s && s.texture != null) {
             texture = s.texture;
             color = SoulWeapon.materials[s.materialIDs[0]].color;
             Projectile.scale = s.Item.scale;
-            Init();
         }
     }
 

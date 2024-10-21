@@ -1,7 +1,7 @@
 texture uTex;
-texture uImage0;
-texture uImage1;
-texture uImage2;
+texture material1;
+texture material2;
+texture material3;
 sampler2D sampler0 = sampler_state
 {
     Texture = uTex;
@@ -14,25 +14,25 @@ sampler2D sampler0 = sampler_state
 
 sampler2D sampler1 = sampler_state
 {
-    Texture = uImage0;
+    Texture = material1;
     AddressU = WRAP;
     AddressV = WRAP;
     MagFilter = POINT;
     MinFilter = POINT;
     MipFilter = POINT;
 }; // primary material
-sampler sampler2 = sampler_state
+sampler2D sampler2 = sampler_state
 {
-    Texture = uImage1;
+    Texture = material2;
     AddressU = WRAP;
     AddressV = WRAP;
     MagFilter = POINT;
     MinFilter = POINT;
     MipFilter = POINT;
 };; // secondary material
-sampler sampler3 = sampler_state
+sampler2D sampler3 = sampler_state
 {
-    Texture = uImage2;
+    Texture = material3;
     AddressU = WRAP;
     AddressV = WRAP;
     MagFilter = POINT;
@@ -52,7 +52,7 @@ float4 PixelShaderFunction(float2 coords : TEXCOORD) : COLOR0
     float2 pixelCoords = coords * (uShaderSpecificData / float2(100, 100));
     float4 mat1 = tex2D(sampler1, pixelCoords) * color.r * 1.2 * isRedPrimary;
     float4 mat2 = tex2D(sampler2, pixelCoords) * color.g * 1.2 * isGreenPrimary;
-    float4 mat3 = tex2D(sampler1, pixelCoords) * color.b * isBluePrimary;
+    float4 mat3 = tex2D(sampler3, pixelCoords) * color.b * isBluePrimary;
 	
     float4 mat = mat1 + mat2 + mat3;
 	

@@ -300,7 +300,7 @@ public class SoulWeapon : ModItem {
         meleeFrames = [
             GetFrames("Sword_1", 30, 38),
             GetFrames("Sword_2", 60, 60, -6, -6),
-            GetFrames("Sword_3", 64, 64, -4, -4),
+            GetFrames("Sword_3", 64, 64, -8, -8),
             GetFrames("Sword_4", 42, 46, -2, -2),
             GetFrames("Sword_5", 20, 20, -2, -2),
             GetFrames("Sword_6", 44, 44, -4, -4),
@@ -308,6 +308,7 @@ public class SoulWeapon : ModItem {
             GetFrames("Sword_8", 48, 48, -6, -6),
             GetFrames("Sword_9", 38, 62, -2, -2),
             GetFrames("Sword_10", 48, 48, -2, -2),
+            GetFrames("Sword_11", 100, 100, -10, -10),
         ];
         shinyMeleeFrames = [
             ..meleeFrames
@@ -355,6 +356,9 @@ public class SoulWeapon : ModItem {
             GetFrames("SwordHandle_5", 14, 14),
             GetFrames("SwordHandle_6", 20, 20),
             GetFrames("SwordHandle_7", 14, 14),
+            GetFrames("SwordHandle_8", 20, 18),
+            GetFrames("SwordHandle_9", 18, 16),
+            GetFrames("SwordHandle_10", 24, 24),
         ];
         yoyoPatternFrames = [
             GetFrames("SwordHandle_1", 14, 14),
@@ -386,7 +390,11 @@ public class SoulWeapon : ModItem {
         materials = [
             (GetMat("0"), () => Color.Pink),
             (GetMat("1"), () => Color.DarkSlateGray),
-            (GetMat("2"), () => new Color(Main.DiscoR, Main.DiscoG, Main.DiscoB))
+            (GetMat("2"), () => new Color(Main.DiscoR, Main.DiscoG, Main.DiscoB)),
+            (GetMat("3"), () => Color.White), // plain colors yuk
+            (GetMat("4"), () => Color.Orange),
+            (GetMat("5"), () => Color.Aqua),
+            (GetMat("6"), () => Color.IndianRed)
         ];
 
         modifiers = [
@@ -874,10 +882,13 @@ public class SoulWeapon : ModItem {
             spriteBatch.End();
             spriteBatch.Begin(SpriteSortMode.Immediate, null, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.UIScaleMatrix);
 
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"].Shader.Parameters["material1"].SetValue(materials[materialIDs[0]].material.Value);
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"].Shader.Parameters["material2"].SetValue(materials[materialIDs[1]].material.Value);
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"].Shader.Parameters["material3"].SetValue(materials[materialIDs[2]].material.Value);
             GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"]
-                    .UseImage0(materials[materialIDs[0]].material)
-                    .UseImage1(materials[materialIDs[1]].material)
-                    .UseImage2(materials[materialIDs[2]].material)
+                    //.UseImage0(materials[materialIDs[0]].material)
+                    //.UseImage1(materials[materialIDs[1]].material)
+                    //.UseImage2(materials[materialIDs[2]].material)
                     .UseShaderSpecificData(new(texture.Width, texture.Height, 0, 0))
                     .Apply();
             spriteBatch.Draw(texture, position, rect, drawColor, 0, origin, scale, SpriteEffects.None, 0);
@@ -897,13 +908,17 @@ public class SoulWeapon : ModItem {
         spriteBatch.End();
         spriteBatch.Begin(SpriteSortMode.Immediate, null, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
 
-        if (materialIDs.Length >= 2)
+        if (materialIDs.Length >= 2) {
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"].Shader.Parameters["material1"].SetValue(materials[materialIDs[0]].material.Value);
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"].Shader.Parameters["material2"].SetValue(materials[materialIDs[1]].material.Value);
+            GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"].Shader.Parameters["material3"].SetValue(materials[materialIDs[2]].material.Value);
             GameShaders.Misc[$"{nameof(SoulWeapons)}/Weapon"]
-                    .UseImage0(materials[materialIDs[0]].material)
-                    .UseImage1(materials[materialIDs[1]].material)
-                    .UseImage2(materials[materialIDs[2]].material)
+                    //.UseImage0(materials[materialIDs[0]].material)
+                    //.UseImage1(materials[materialIDs[1]].material)
+                    //.UseImage2(materials[materialIDs[2]].material)
                     .UseShaderSpecificData(new(texture.Width, texture.Height, 0, 0))
                     .Apply();
+        }
         spriteBatch.Draw(texture, drawPosition, new Rectangle(0, 0, Item.width, Item.height), lightColor, rotation, drawOrigin, scale, SpriteEffects.None, 0);
         spriteBatch.End();
         spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, Main.DefaultSamplerState, DepthStencilState.None, Main.Rasterizer, null, Main.GameViewMatrix.TransformationMatrix);
@@ -1048,11 +1063,17 @@ public class SoulWeapon : ModItem {
             } : 0);
         tag["frame"] = frames;
         tag["materials"] = materialIDs;
-        //if (stage > 0)
+        if (stage > 0)
             tag["stage"] = stage;
         tag["name"] = name;
         tag["modifiers"] = modifierIDs;
         tag["damage"] = Item.damage;
+        if (Item.knockBack != 1)
+            tag["knockback"] = Item.knockBack;
+        if (Item.scale != 1)
+            tag["scale"] = Item.scale;
+        if (Item.mana > 0)
+            tag["mana"] = Item.mana;
         switch (type) {
             case WeaponType.Melee:
                 break;
@@ -1061,9 +1082,7 @@ public class SoulWeapon : ModItem {
             case WeaponType.Yoyo:
                 break;
             case WeaponType.Tome:
-                break;
             case WeaponType.Scepter:
-                break;
             case WeaponType.Staff:
                 break;
             case WeaponType.Whip:
@@ -1101,14 +1120,16 @@ public class SoulWeapon : ModItem {
             materialIDs = m;
         if (tag.TryGet("name", out string n))
             name = n;
-        if (tag.TryGet("stage", out byte s))
-            stage = s;
+        stage = tag.TryGet("stage", out byte s) ? s : (byte)0;
         if (tag.TryGet("modifiers", out byte[] mo)) {
             modifierIDs = mo;
             foreach (byte modifier in modifierIDs)
                 modifiers[modifier].modifier(Item, this, true);
         }
         Item.damage = tag.TryGet("damage", out int dmg) ? dmg : 1;
+        Item.knockBack = tag.TryGet("knockback", out int knockback) ? knockback : 1;
+        Item.scale = tag.TryGet("scale", out float scale) ? scale : 1;
+        Item.mana = tag.TryGet("mana", out int mana) ? mana : 0;
         switch (type) {
             case WeaponType.Melee:
                 break;
@@ -1117,9 +1138,7 @@ public class SoulWeapon : ModItem {
             case WeaponType.Yoyo:
                 break;
             case WeaponType.Tome:
-                break;
             case WeaponType.Scepter:
-                break;
             case WeaponType.Staff:
                 break;
             case WeaponType.Whip:
